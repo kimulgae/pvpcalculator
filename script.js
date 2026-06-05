@@ -53,16 +53,16 @@ const SKILL_DB = {
 
 const ASCENSION_MULTIPLIERS = { 0: 1.0, 1: 49.0, 2: 2499.0, 3: 124999.0 };
 
-// [완벽한 오타 교정기]
+// [철벽 오타 교정기] JPG 화질 저하로 인한 모든 오타 포용
 function normalizeStatName(rawName) {
+    if (rawName.includes("총") || rawName.includes("대장간") || rawName.includes("레벨") || rawName.includes("도감") || rawName.includes("장착")) return null;
+    
     if (rawName.includes("치명") || rawName.includes("지명") || rawName.includes("명타")) {
         return (rawName.includes("피해") || rawName.includes("피애")) ? "치명타 피해" : "치명타 확률";
     }
-    if (rawName.includes("확률") || rawName.includes("확럴") || rawName.includes("학률") || rawName.includes("블록") || rawName.includes("블럭") || rawName.includes("플록")) {
-        return "블록 확률";
-    }
+    if (rawName.includes("확률") || rawName.includes("확럴") || rawName.includes("학률") || rawName.includes("블록") || rawName.includes("블럭") || rawName.includes("플록")) return "블록 확률";
     if (rawName.includes("흡수") || rawName.includes("생명") || rawName.includes("흡슈")) return "생명력 흡수";
-    if (rawName.includes("더블") || rawName.includes("떠블") || rawName.includes("찬스")) return "더블 찬스";
+    if (rawName.includes("더블") || rawName.includes("떠블") || rawName.includes("찬스") || rawName.includes("단스")) return "더블 찬스";
     if (rawName.includes("속도") || rawName.includes("속토") || rawName.includes("공격")) return "공격 속도";
     if (rawName.includes("대기") || rawName.includes("재사용") || rawName.includes("시간")) return "스킬 재사용 대기시간";
     
@@ -70,17 +70,15 @@ function normalizeStatName(rawName) {
     if (rawName.includes("원거리") || rawName.includes("원거")) return "원거리 피해";
     if (rawName.includes("스킬") || rawName.includes("스길")) return "스킬 피해";
     
-    // 체력 재생과 체력의 완벽한 분리
     if (rawName.includes("재생") || rawName.includes("제생")) return "체력 재생";
     if (rawName.includes("체력") || rawName.includes("채력") || rawName.includes("최력")) return "체력";
     
-    // 남은 것은 순수 피해
     if (rawName.includes("피해") || rawName.includes("피애") || rawName.includes("파해") || rawName.includes("피헤")) return "피해";
     
     return null;
 }
 
-// [무적의 스캔 로직] 에러가 절대 나지 않는 방식 + 플러스 기호 사냥꾼
+// [가장 안정적인 스캔 로직] 기호가 안 보여도 숫자와 옵션명만 쏙쏙 뺍니다!
 async function processImages(fileInputId, statusId, listId, playerKey) {
     const files = document.getElementById(fileInputId).files;
     if (files.length === 0) return;
@@ -91,30 +89,28 @@ async function processImages(fileInputId, statusId, listId, playerKey) {
 
     try {
         for (let i = 0; i < files.length; i++) {
-            statusEl.innerText = `⏳ ${i + 1}/${files.length}번째 이미지 분석 중...`;
+            statusEl.innerText = `⏳ ${i + 1}/${files.length}번째 이미지 딥러닝 분석 중...`;
             
-            // [가장 안전한 방식] 브라우저가 뻗지 않도록 URL 객체 사용
+            // 모바일 튕김 방지용 가장 안전한 URL 로딩 방식
             const imgUrl = URL.createObjectURL(files[i]);
             const { data: { text } } = await Tesseract.recognize(imgUrl, 'kor+eng');
-            URL.revokeObjectURL(imgUrl); // 메모리 즉시 정리 (앱 튕김 방지)
+            URL.revokeObjectURL(imgUrl); 
 
-            // 1. 띄어쓰기를 싹 다 제거합니다.
             const cleanText = text.replace(/\s+/g, '');
             
-            // 2. 🎯 핵심: 무조건 '+' 기호로 시작하는 데이터만 싹 쓸어옵니다!
-            // 이 덕분에 '216k총피해' 같은 상단 프로필은 '+'가 없어서 완벽히 무시됩니다.
-            const regex = /([+-])(\d+[\.,]?\d*)[%]?([가-힣]+)/g;
+            // 🎯 핵심 해결책: JPG 뭉개짐 때문에 +가 안 보여도 매칭되도록 [+-]? 로 변경 (t나 *로 오작동하는 것도 포용)
+            const regex = /([+-\*t]?)(\d+[\.,]?\d*)[%]?([가-힣]+)/g;
             let match;
             
             while ((match = regex.exec(cleanText)) !== null) {
-                const sign = match[1]; // + 또는 -
+                const sign = match[1];
                 const numStr = match[2].replace(',', '.');
                 let value = parseFloat(numStr);
                 
                 if (sign === '-') value = -value;
                 
-                // OCR 오류 방지 (비정상적으로 큰 쓰레기 숫자 버림)
-                if (Math.abs(value) > 50000) continue;
+                // OCR 오작동 쓰레기 데이터 컷 (게임 내 정상적인 % 수치만 허용)
+                if (Math.abs(value) > 30000) continue;
 
                 const rawName = match[3];
                 const statName = normalizeStatName(rawName);
@@ -131,7 +127,7 @@ async function processImages(fileInputId, statusId, listId, playerKey) {
 
     } catch (e) { 
         console.error(e);
-        statusEl.innerText = `❌ 에러 발생: 브라우저 새로고침 후 다시 시도해주세요.`;
+        statusEl.innerText = `❌ 에러 발생: 페이지 새로고침 후 다시 시도해주세요.`;
         statusEl.style.color = "#ff4b4b";
     }
 }
