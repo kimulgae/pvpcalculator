@@ -53,34 +53,7 @@ const SKILL_DB = {
 
 const ASCENSION_MULTIPLIERS = { 0: 1.0, 1: 49.0, 2: 2499.0, 3: 124999.0 };
 
-// [철벽 방어] 오타 및 상단 프로필 옵션 완벽 필터링
-function normalizeStatName(rawName) {
-    // 프로필에 있는 '총 피해', '총 체력', '대장간' 등은 무조건 버립니다.
-    if (rawName.includes("총") || rawName.includes("대장간") || rawName.includes("레벨") || rawName.includes("도감")) return null;
-
-    if (rawName.includes("치명") || rawName.includes("지명")) {
-        return (rawName.includes("피해") || rawName.includes("피애")) ? "치명타 피해" : "치명타 확률";
-    }
-    if (rawName.includes("블록") || rawName.includes("블럭") || rawName.includes("플록")) return "블록 확률";
-    if (rawName.includes("흡수") || rawName.includes("생명")) return "생명력 흡수";
-    if (rawName.includes("더블") || rawName.includes("찬스") || rawName.includes("단스")) return "더블 찬스";
-    if (rawName.includes("속도") || rawName.includes("공격")) return "공격 속도";
-    if (rawName.includes("대기") || rawName.includes("재사용") || rawName.includes("시간")) return "스킬 재사용 대기시간";
-    if (rawName.includes("근접") || rawName.includes("건접")) return "근접 피해";
-    if (rawName.includes("원거리") || rawName.includes("원거")) return "원거리 피해";
-    if (rawName.includes("스킬") || rawName.includes("스길")) return "스킬 피해";
-    
-    // 체력 재생 vs 순수 체력 완벽 분리
-    if (rawName.includes("재생") || rawName.includes("제생")) return "체력 재생";
-    if (rawName.includes("체력") || rawName.includes("채력")) return "체력"; 
-    
-    // 위에 다 걸러지고 남은 순수 피해
-    if (rawName.includes("피해") || rawName.includes("피애") || rawName.includes("파해")) return "피해"; 
-    
-    return null;
-}
-
-// [쪽집게 스캔 로직] AI가 글씨를 어떻게 뭉치든 패턴만 쪽집게로 뽑아냅니다.
+// [초정밀 한 줄 스캔 로직] 한 줄씩 안전하게 분석합니다!
 async function processImages(fileInputId, statusId, listId, playerKey) {
     const files = document.getElementById(fileInputId).files;
     if (files.length === 0) return;
@@ -93,34 +66,74 @@ async function processImages(fileInputId, statusId, listId, playerKey) {
 
     try {
         for (let i = 0; i < files.length; i++) {
-            statusEl.innerText = `⏳ ${i + 1}/${files.length}번째 이미지 딥러닝 분석 중...`;
+            statusEl.innerText = `⏳ ${i + 1}/${files.length}번째 이미지 분석 중...`;
             
             const { data: { text } } = await Tesseract.recognize(URL.createObjectURL(files[i]), 'kor+eng');
 
-            // 1. 글자 사이의 모든 띄어쓰기를 완전히 파괴하여 한 덩어리로 만듭니다.
-            const cleanText = text.replace(/\s+/g, '');
-            
-            // 2. 무적의 사냥꾼 정규식: (부호)(숫자)(기타쓰레기문자)(한글) 패턴을 문서 전체에서 싹 다 찾아냅니다!
-            // 예: "+10.5%블록확률", "167%근접피해", "-5스킬재사용" 등 완벽 감지
-            const regex = /([+-]?)(\d+[\.,]?\d*)([^가-힣0-9]*)([가-힣]+)/g;
-            let match;
-            
-            // 텍스트 전체를 돌면서 조건에 맞는 걸 다 주워 담습니다.
-            while ((match = regex.exec(cleanText)) !== null) {
-                const sign = match[1]; // + 또는 - (없을 수도 있음)
-                const numStr = match[2].replace(',', '.'); // 숫자의 쉼표를 마침표로
-                let value = parseFloat(numStr);
+            // 텍스트를 반드시 한 줄씩 쪼개서 검사합니다.
+            text.split('\n').forEach(line => {
+                const lowerLine = line.toLowerCase();
                 
-                if (sign === '-') value = -value; // 음수 처리
-                
-                const rawName = match[4]; // 뒤에 붙은 한글 옵션명
-                const cleanName = normalizeStatName(rawName); // 교정기 통과
-                
-                // 교정기를 통과한 정상적인 옵션이고, 게임상 존재하기 힘든 99999% 이상의 쓰레기 숫자가 아니라면 저장!
-                if (cleanName !== null && value < 99999) {
-                    parsedData[playerKey].stats[cleanName] = value;
+                // 1. 프로필의 쓸모없는 텍스트가 있는 '줄'만 정확히 버립니다.
+                if (lowerLine.includes("총") || lowerLine.includes("대장간") || lowerLine.includes("lv") || lowerLine.includes("k") || lowerLine.includes("m") || lowerLine.includes("도감")) {
+                    return; 
                 }
-            }
+
+                // 2. 해당 줄의 띄어쓰기를 싹 지우고 숫자와 한글을 분리합니다.
+                const cleanLine = line.replace(/\s+/g, '');
+                if (!cleanLine) return;
+
+                const numMatch = cleanLine.match(/([+-]?\d+[\.,]?\d*)/); // 숫자 추출
+                const korMatch = cleanLine.match(/[가-힣]+/g); // 한글 추출
+
+                // 숫자와 한글이 둘 다 존재하는 정상적인 옵션 줄이라면?
+                if (numMatch && korMatch) {
+                    let value = parseFloat(numMatch[1].replace(',', '.')); // 쉼표는 마침표로
+                    let rawName = korMatch.join(''); // 한글 덩어리 합체
+
+                    // AI가 미쳐서 5만% 이상의 숫자를 읽으면 OCR 오류로 간주하고 차단
+                    if (Math.abs(value) > 50000) return;
+
+                    let statName = null;
+
+                    // 3. 무적의 오타 및 키워드 판독기
+                    if (rawName.includes("치명") || rawName.includes("지명") || rawName.includes("명타")) {
+                        statName = (rawName.includes("피해") || rawName.includes("피애")) ? "치명타 피해" : "치명타 확률";
+                    } else if (rawName.includes("확률") || rawName.includes("확럴") || rawName.includes("학률")) {
+                        statName = "블록 확률"; // 치명타가 아닌데 확률이면 블록 확률
+                    } else if (rawName.includes("블록") || rawName.includes("블럭") || rawName.includes("플록")) {
+                        statName = "블록 확률";
+                    } else if (rawName.includes("흡수") || rawName.includes("흡슈") || rawName.includes("생명")) {
+                        statName = "생명력 흡수";
+                    } else if (rawName.includes("더블") || rawName.includes("떠블") || rawName.includes("찬스")) {
+                        statName = "더블 찬스";
+                    } else if (rawName.includes("속도") || rawName.includes("속토") || rawName.includes("공격")) {
+                        statName = "공격 속도";
+                    } else if (rawName.includes("대기") || rawName.includes("재사용") || rawName.includes("시간")) {
+                        statName = "스킬 재사용 대기시간";
+                    } else if (rawName.includes("피해") || rawName.includes("피애") || rawName.includes("파해") || rawName.includes("피헤")) {
+                        if (rawName.includes("근접") || rawName.includes("건접")) statName = "근접 피해";
+                        else if (rawName.includes("원거리") || rawName.includes("원거")) statName = "원거리 피해";
+                        else if (rawName.includes("스킬") || rawName.includes("스길")) statName = "스킬 피해";
+                        else statName = "피해"; // 앞에 수식어가 없으면 순수 피해
+                    } else if (rawName.includes("근접") || rawName.includes("건접")) {
+                        statName = "근접 피해";
+                    } else if (rawName.includes("원거리") || rawName.includes("원거")) {
+                        statName = "원거리 피해";
+                    } else if (rawName.includes("스킬") || rawName.includes("스길")) {
+                        statName = "스킬 피해";
+                    } else if (rawName.includes("재생") || rawName.includes("제생")) {
+                        statName = "체력 재생"; // 재생이 있으면 우선순위
+                    } else if (rawName.includes("체력") || rawName.includes("채력") || rawName.includes("쳬력") || rawName.includes("최력")) {
+                        statName = "체력"; // 재생이 없는데 체력이 있으면 순수 체력!
+                    }
+
+                    // 옵션을 찾았으면 저장!
+                    if (statName) {
+                        parsedData[playerKey].stats[statName] = value;
+                    }
+                }
+            });
         }
         
         renderOptionList(parsedData[playerKey].stats, listId);
@@ -162,7 +175,6 @@ document.getElementById('calcBtn').addEventListener('click', () => {
         const getS = (k) => stats[k] / 100 || 0; 
         
         let multi = 1.0;
-        // 이제 "체력", "근접 피해" 등 스캔된 값도 최종 승률에 완벽하게 반영됩니다.
         multi *= (1 + getS("피해") + getS("근접 피해") + getS("원거리 피해") + getS("스킬 피해"));
         multi *= (1 + getS("체력")); 
         multi *= (1 + getS("공격 속도"));
