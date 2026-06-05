@@ -51,7 +51,6 @@ const SKILL_DB = {
     "StrafeRun": { type: "dmg", power: 12.0, cooldown: 10, count: 6 }
 };
 
-// [1] 통합 승천 배율
 const ASCENSION_MULTIPLIERS = {
     0: 1.0,
     1: 49.0,
@@ -59,46 +58,56 @@ const ASCENSION_MULTIPLIERS = {
     3: 124999.0
 };
 
+// [옵션 정규화 핵심: 체력 vs 체력 재생 완벽 분리]
 function normalizeStatName(rawName) {
     const str = rawName.replace(/\s+/g, '').toUpperCase(); 
-    if (str.includes("확률")) return (str.includes("블록")) ? "블록 확률" : "치명타 확률"; 
-    if (str.includes("재생")) return "체력 재생";
-    if (str.includes("흡수")) return "생명력 흡수";
-    if (str.includes("더블")) return "더블 찬스";
-    if (str.includes("속도")) return "공격 속도";
-    if (str.includes("대기")) return "스킬 재사용 대기시간";
+    
+    if (str.includes("체력재생") || str.includes("체력생") || str === "재생") return "체력 재생";
+    if (str === "체력" || str.includes("체력%")) return "체력"; 
+    
+    if (str.includes("확률") || str.includes("확럴") || str.includes("확룰")) return (str.includes("블록") || str.includes("블럭")) ? "블록 확률" : "치명타 확률"; 
+    if (str.includes("흡수") || str.includes("흡슈")) return "생명력 흡수";
+    if (str.includes("더블") || str.includes("떠블")) return "더블 찬스";
+    if (str.includes("속도") || str.includes("속토")) return "공격 속도";
+    if (str.includes("대기") || str.includes("재사용")) return "스킬 재사용 대기시간";
     
     const hasDmg = str.includes("피해") || str.includes("피애") || str.includes("씨애") || str.includes("찌애") || str.includes("파해");
     if (hasDmg) {
-        if (str.includes("근접")) return "근접 피해";
-        if (str.includes("원거리")) return "원거리 피해";
-        if (str.includes("스킬")) return "스킬 피해";
+        if (str.includes("근접") || str.includes("건접")) return "근접 피해";
+        if (str.includes("원거리") || str.includes("원거")) return "원거리 피해";
+        if (str.includes("스킬") || str.includes("스길")) return "스킬 피해";
         if (str.length >= 4) return "치명타 피해"; 
         return "피해";
     }
-    if (str.includes("치명")) return "치명타 피해"; 
+    if (str.includes("치명") || str.includes("지명") || str.includes("명타")) return "치명타 피해"; 
+
     return null;
 }
 
+// [다중 스캔 로직 보강: 여러 장을 올려도 안정적으로 누적]
 async function processImages(fileInputId, statusId, listId, playerKey) {
     const files = document.getElementById(fileInputId).files;
     if (files.length === 0) return;
 
     const statusEl = document.getElementById(statusId);
-    statusEl.innerText = `⏳ 분석 중...`;
+    statusEl.innerText = `⏳ 총 ${files.length}장 분석 중...`;
     statusEl.style.color = "#f9a826";
 
+    // 스캔 시작 시 기존 옵션 초기화 (새로운 사진 그룹만 적용)
     parsedData[playerKey].stats = {}; 
 
     try {
         for (let i = 0; i < files.length; i++) {
+            statusEl.innerText = `⏳ ${i + 1}/${files.length}번째 이미지 처리 중...`;
             const { data: { text } } = await Tesseract.recognize(URL.createObjectURL(files[i]), 'kor+eng');
 
             text.split('\n').forEach(line => {
                 const optMatch = line.match(/(?:\+|-)?\s*([\d\.,]+)\s*%\s*([가-힣a-zA-Z\s]+)/);
                 if (optMatch) {
                     const cleanName = normalizeStatName(optMatch[2].trim());
-                    if (cleanName !== null) parsedData[playerKey].stats[cleanName] = parseFloat(optMatch[1].replace(/,/g, '.')); 
+                    if (cleanName !== null) {
+                        parsedData[playerKey].stats[cleanName] = parseFloat(optMatch[1].replace(/,/g, '.')); 
+                    }
                 }
             });
         }
@@ -126,6 +135,7 @@ function renderOptionList(stats, containerId) {
     });
 }
 
+// [정밀 계산 엔진: 체력, 근접 피해 등 인식된 모든 옵션 반영]
 document.getElementById('calcBtn').addEventListener('click', () => {
     
     const getMultiplier = (u) => ({'k': 1e3, 'm': 1e6, 'b': 1e9, 't': 1e12, 'q': 1e15}[u] || 1);
@@ -140,15 +150,17 @@ document.getElementById('calcBtn').addEventListener('click', () => {
     }
 
     const calcEff = (stats, pKey) => {
-        const getS = (k) => stats[Object.keys(stats).find(x => x.includes(k))] / 100 || 0;
+        // 정확한 키 매칭 및 합산을 위해 includes 대신 === 활용 (안전성 강화)
+        const getS = (k) => stats[Object.keys(stats).find(x => x === k)] / 100 || 0;
         
         let multi = 1.0;
-        multi *= (1 + getS("피해"));
+        // 이제 "체력", "근접 피해" 등 스캔된 값도 최종 승률에 강력하게 반영됩니다.
+        multi *= (1 + getS("피해") + getS("근접 피해") + getS("원거리 피해") + getS("스킬 피해"));
+        multi *= (1 + getS("체력"));
         multi *= (1 + getS("공격 속도"));
         multi *= (1 + getS("더블 찬스"));
         multi *= (1 + (getS("치명타 확률") * (0.2 + getS("치명타 피해"))));
 
-        // [2] 통합 승천 단계 1번만 가져오기
         const ascLevel = parseInt(document.getElementById(pKey + 'Ascension').value);
         const ascBonus = ASCENSION_MULTIPLIERS[ascLevel] || 1.0;
 
