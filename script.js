@@ -1,8 +1,32 @@
-// 옵션 데이터를 저장할 객체 (기본 스탯 관련 변수 싹 다 제거)
+// 옵션 데이터를 저장할 객체
 const parsedData = {
     my: { stats: {} },
     enemy: { stats: {} }
 };
+
+// --- [핵심 추가] 옵션 이름 오타 교정 및 중복 방지기 ---
+function normalizeStatName(rawName) {
+    const str = rawName.replace(/\s+/g, ''); // 공백을 모두 지우고 판별
+
+    if (str.includes("치명타확")) return "치명타 확률";
+    if (str.includes("치명타피") || str.includes("치명타애") || str.includes("치명타찌")) return "치명타 피해";
+    if (str.includes("블록")) return "블록 확률";
+    if (str.includes("재생")) return "체력 재생";
+    if (str.includes("흡수")) return "생명력 흡수";
+    if (str.includes("더블")) return "더블 찬스";
+    if (str.includes("근접")) return "근접 피해";
+    if (str.includes("원거리")) return "원거리 피해";
+    if (str.includes("속도")) return "공격 속도";
+    if (str.includes("대기시간")) return "스킬 재사용 대기시간";
+    if (str.includes("스킬피") || str.includes("스킬애") || str.includes("스킬찌") || str.includes("스킬씨")) return "스킬 피해";
+    
+    // 위 조건들에 걸리지 않고 피/애/해/찌/씨 가 있다면 단일 '피해' 옵션으로 강력 통일
+    if (str.includes("피해") || str.includes("피애") || str.includes("씨애") || str.includes("찌애") || str.includes("파해")) {
+        return "피해";
+    }
+
+    return rawName.trim(); // 사전에 없는 값이면 원본 그대로 출력
+}
 
 // --- [1] 세부 옵션 전용 초고속 스캐너 ---
 async function processImages(fileInputId, statusId, listId, playerKey) {
@@ -28,14 +52,18 @@ async function processImages(fileInputId, statusId, listId, playerKey) {
                 }
             });
 
-            // 오직 "%"가 붙어있는 세부 옵션만 정밀하게 긁어옵니다. (총 피해/체력 절대 안 건드림)
             const lines = text.split('\n');
             lines.forEach(line => {
                 const optMatch = line.match(/(?:\+|-)?\s*([\d\.,]+)\s*%\s*([가-힣a-zA-Z\s]+)/);
                 if (optMatch) {
                     const value = parseFloat(optMatch[1].replace(/,/g, '.'));
-                    const name = optMatch[2].trim();
-                    parsedData[playerKey].stats[name] = value; 
+                    const rawName = optMatch[2].trim();
+                    
+                    // 1. 오타 교정기로 이름 깔끔하게 통일
+                    const cleanName = normalizeStatName(rawName);
+                    
+                    // 2. 객체에 저장 (이름이 똑같으면 자동으로 덮어씌워지므로 중복 리스트업 절대 불가)
+                    parsedData[playerKey].stats[cleanName] = value; 
                 }
             });
         }
@@ -43,7 +71,6 @@ async function processImages(fileInputId, statusId, listId, playerKey) {
         // UI 리스트 그리기
         renderOptionList(parsedData[playerKey].stats, listId);
 
-        // 출력 텍스트 아주 깔끔하게 변경
         statusEl.innerText = `✅ 세부 옵션 스캔 완료!`;
         statusEl.style.color = "#4ade80";
 
@@ -64,6 +91,7 @@ function renderOptionList(stats, containerId) {
         return;
     }
 
+    // 객체에 담긴 데이터만 출력하므로 중복 데이터 없음 보장
     keys.forEach(optionName => {
         const value = stats[optionName];
         const prefix = optionName.includes("대기시간") ? "-" : "+";
@@ -81,22 +109,21 @@ document.getElementById('myImage').addEventListener('change', () => processImage
 document.getElementById('enemyImage').addEventListener('change', () => processImages('enemyImage', 'enemyStatus', 'enemyOptionList', 'enemy'));
 
 
-// --- [2] 정밀 승률 예측 엔진 (수동 단위 스케일링 적용) ---
+// --- [2] 정밀 승률 예측 엔진 ---
 document.getElementById('calcBtn').addEventListener('click', () => {
     
-    // 단위 변환기 (K, M, B, T, Q를 실제 수학적 비율로 변환)
+    // 단위 변환기
     const getMultiplier = (unit) => {
         switch(unit) {
-            case 'k': return 1e3;          // 1,000
-            case 'm': return 1e6;          // 1,000,000
-            case 'b': return 1e9;          // 1,000,000,000
-            case 't': return 1e12;         // 1,000,000,000,000
-            case 'q': return 1e15;         // 1,000,000,000,000,000
-            default: return 1;             // none (기본)
+            case 'k': return 1e3;          
+            case 'm': return 1e6;          
+            case 'b': return 1e9;          
+            case 't': return 1e12;         
+            case 'q': return 1e15;         
+            default: return 1;             
         }
     };
 
-    // 수동 입력값 가져오기 (숫자 * 단위)
     const getManualInput = (idVal, idUnit) => {
         const val = parseFloat(document.getElementById(idVal).value) || 0;
         const unit = document.getElementById(idUnit).value;
@@ -113,7 +140,6 @@ document.getElementById('calcBtn').addEventListener('click', () => {
         return;
     }
 
-    // 기초 점수 (단위가 통일된 절대값)
     const myBase = myDmg * myHp;
     const enemyBase = enemyDmg * enemyHp;
 
