@@ -34,57 +34,63 @@ async function processImages(fileInputId, statusId, listId, playerKey) {
                     }
                 }
             });
-            
-            // 1. 총 피해 추출 ('총' 글자가 날아가거나 띄어쓰기가 엉망이어도 최대 8글자 내에서 탐색)
-            const dmgMatch = text.match(/([\d\.,]+)\s*([a-zA-Z6]?)\s*[\s\S]{0,8}피\s*[해히]/i);
-            if (dmgMatch) {
-                let numStr = dmgMatch[1].replace(/,/g, '');
-                let unit = dmgMatch[2].toLowerCase();
 
-                // 'b'를 '6'으로 오독한 경우 자동 교정
-                if (unit === '' && numStr.endsWith('6')) {
-                    numStr = numStr.slice(0, -1);
-                    unit = 'b';
-                } else if (unit === '6') {
-                    unit = 'b';
-                }
-
-                let val = parseFloat(numStr);
-                if (unit === 'm') val /= 1000;
-                if (val > maxDmg) maxDmg = val;
-            }
-
-            // 2. 총 체력 추출 (마찬가지로 숫자와 '체력' 사이의 온갖 오타와 줄바꿈 무시)
-            const hpMatch = text.match(/([\d\.,]+)\s*([a-zA-Z6]?)\s*[\s\S]{0,8}[체채제]\s*[력럭릭]/i);
-            if (hpMatch) {
-                let numStr = hpMatch[1].replace(/,/g, '');
-                let unit = hpMatch[2].toLowerCase();
-
-                if (unit === '' && numStr.endsWith('6')) {
-                    numStr = numStr.slice(0, -1);
-                    unit = 'b';
-                } else if (unit === '6') {
-                    unit = 'b';
-                }
-
-                let val = parseFloat(numStr);
-                if (unit === 'm') val /= 1000;
-                if (val > maxHp) maxHp = val;
-            }
-
-            // 3. 세부 옵션 추출 (+ 수치 % 형태)
+            // 줄 단위로 쪼개서 엄격하게 검사
             const lines = text.split('\n');
             lines.forEach(line => {
-                const match = line.match(/(?:\+|-)?\s*([\d\.,]+)\s*%\s*([가-힣a-zA-Z\s]+)/);
-                if (match) {
-                    const value = parseFloat(match[1].replace(/,/g, ''));
-                    const name = match[2].trim();
+                
+                // 1. 총 피해 추출 (반드시 숫자 바로 뒤에 '총 피해'가 오는 경우만 인정)
+                const dmgMatch = line.match(/([\d\.,]+)\s*([mbMB6]?)\s*[총종통충층]\s*피\s*[해히]/i);
+                if (dmgMatch) {
+                    let numStr = dmgMatch[1].replace(/,/g, '.'); // 콤마를 온점으로 교체
+                    let unit = dmgMatch[2].toLowerCase();
+
+                    // 'b'를 '6'으로 오독한 경우 완벽 교정 (예: 1.296 -> 1.29b)
+                    if (unit === '' && numStr.endsWith('6') && numStr.includes('.')) {
+                        numStr = numStr.slice(0, -1);
+                        unit = 'b';
+                    } else if (unit === '6') {
+                        unit = 'b';
+                    } else if (unit === '') {
+                        unit = 'b'; // 단위가 없으면 기본값 B
+                    }
+
+                    let val = parseFloat(numStr);
+                    if (unit === 'm') val /= 1000;
+                    if (val > maxDmg && val < 5000) maxDmg = val; // 5000B 이상은 오류로 간주하고 무시
+                }
+
+                // 2. 총 체력 추출 (반드시 숫자 바로 뒤에 '총 체력'이 오는 경우만 인정)
+                const hpMatch = line.match(/([\d\.,]+)\s*([mbMB6]?)\s*[총종통충층]\s*[체채제]\s*[력럭릭]/i);
+                if (hpMatch) {
+                    let numStr = hpMatch[1].replace(/,/g, '.');
+                    let unit = hpMatch[2].toLowerCase();
+
+                    if (unit === '' && numStr.endsWith('6') && numStr.includes('.')) {
+                        numStr = numStr.slice(0, -1);
+                        unit = 'b';
+                    } else if (unit === '6') {
+                        unit = 'b';
+                    } else if (unit === '') {
+                        unit = 'b';
+                    }
+
+                    let val = parseFloat(numStr);
+                    if (unit === 'm') val /= 1000;
+                    if (val > maxHp && val < 5000) maxHp = val;
+                }
+
+                // 3. 세부 옵션 추출 (+ 수치 % 형태)
+                const optMatch = line.match(/(?:\+|-)?\s*([\d\.,]+)\s*%\s*([가-힣a-zA-Z\s]+)/);
+                if (optMatch) {
+                    const value = parseFloat(optMatch[1].replace(/,/g, '.'));
+                    const name = optMatch[2].trim();
                     parsedData[playerKey].stats[name] = value; 
                 }
             });
         }
 
-        // 혹시라도 못 찾았을 경우 계산기 고장 방지를 위해 1 부여
+        // 못 찾았을 경우 기본값 1 부여
         parsedData[playerKey].dmg = maxDmg || 1;
         parsedData[playerKey].hp = maxHp || 1;
 
