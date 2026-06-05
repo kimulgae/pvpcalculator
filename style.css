@@ -7,21 +7,26 @@ body { background-color: #12121c; color: #ffffff; display: flex; justify-content
 h1 { color: #f9a826; font-size: 32px; margin-bottom: 8px; }
 .subtitle { color: #8e8e9f; margin-bottom: 30px; font-size: 15px; word-break: keep-all; }
 
-/* 💻 PC 레이아웃: 카드가 양옆으로 예쁘게 배치됨 */
+/* 💻 PC/모바일 공통 레이아웃 (카드 영역) */
 .upload-section { display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 30px; width: 100%; align-items: flex-start; }
-.player-card { flex: 1 1 320px; background: #1e1e2e; padding: 25px; border-radius: 16px; border: 1px solid #2a2a40; text-align: left; max-width: 100%; }
+/* 카드가 화면 밖으로 튀어나가지 않게 overflow: hidden 추가 */
+.player-card { flex: 1 1 320px; background: #1e1e2e; padding: 25px; border-radius: 16px; border: 1px solid #2a2a40; text-align: left; width: 100%; max-width: 100%; overflow: hidden; }
 
 .player-card h2 { margin-bottom: 15px; color: #4ade80; font-size: 20px; border-bottom: 1px solid #2a2a40; padding-bottom: 10px; text-align: center; }
 .player-card:nth-child(2) h2 { color: #ff4b4b; }
 
 /* 🛡️ 입력창 레이아웃 철벽 방어 (모바일 찌그러짐 원천 차단) */
 .manual-input-group { margin-bottom: 15px; width: 100%; }
-.input-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; width: 100%; }
-/* label 글자가 절대 안 찌그러지게 flex-shrink 금지 */
-.input-row label { flex: 0 0 55px; color: #d0d0e0; font-size: 14px; font-weight: 600; white-space: nowrap; text-align: left; }
-/* input이 폰 화면 밖으로 안 튀어나가게 min-width: 0 설정 */
-.input-row input { flex: 1 1 auto; min-width: 0; background: #161622; color: #fff; border: 1px solid #33334d; padding: 10px; border-radius: 8px; font-size: 14px; outline: none; }
-.input-row select { flex: 0 0 70px; background: #2a2a40; color: #4ade80; border: 1px solid #33334d; padding: 10px 4px; border-radius: 8px; font-weight: bold; outline: none; cursor: pointer; font-size: 14px; text-align: center; }
+.input-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; width: 100%; }
+
+/* 라벨: 글자 세로 찌그러짐 완벽 차단 (white-space, word-break, flex-shrink) */
+.input-row label { flex-shrink: 0; width: 55px; color: #d0d0e0; font-size: 14px; font-weight: 600; white-space: nowrap; word-break: keep-all; }
+
+/* 입력창: 화면 밖으로 튀어나가는 현상 완벽 차단 (min-width: 0, flex: 1) */
+.input-row input { flex: 1; min-width: 0; width: 100%; background: #161622; color: #fff; border: 1px solid #33334d; padding: 10px; border-radius: 8px; font-size: 14px; outline: none; }
+
+/* 단위 선택창: 크기 고정 */
+.input-row select { flex-shrink: 0; width: 75px; background: #2a2a40; color: #4ade80; border: 1px solid #33334d; padding: 10px 4px; border-radius: 8px; font-weight: bold; outline: none; cursor: pointer; font-size: 14px; text-align: center; }
 
 /* 3개 스킬 & 공통 승천 디자인 */
 .skill-slots-container { margin-bottom: 10px; text-align: left; margin-top: 15px; width: 100%; }
@@ -51,21 +56,23 @@ input[type="file"] { margin-bottom: 15px; width: 100%; font-size: 13px; color: #
 .progress-fill { width: 50%; height: 100%; background: linear-gradient(90deg, #4ade80, #ff4b4b); transition: width 1s cubic-bezier(0.4, 0, 0.2, 1); }
 .feedback { color: #d0d0e0; font-size: 16px; line-height: 1.6; word-break: keep-all; }
 
-/* 📱 스마트폰 모바일 화면 전용 디자인 (화면 폭이 좁아지면 카드가 세로로, 글씨는 최적화) */
+/* 📱 스마트폰 전용 비율 강제 조정 */
 @media (max-width: 768px) {
     body { padding: 20px 10px; }
     h1 { font-size: 26px; }
     .player-card { padding: 15px; }
     
+    /* 라벨, 인풋, 셀렉트 크기 황금비율 고정 */
     .input-row label { flex: 0 0 50px; font-size: 13px; }
     .input-row input { font-size: 14px; padding: 8px; }
-    .input-row select { flex: 0 0 60px; font-size: 13px; padding: 8px 2px; }
+    .input-row select { flex: 0 0 65px; font-size: 13px; padding: 8px 2px; }
     
     .skill-slots { gap: 5px; }
     .skill-item select { padding: 8px 0; font-size: 12px; }
     
-    .ascension-slot { flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px; }
-    .asc-select-full { width: 100%; padding: 10px; font-size: 14px; }
+    .ascension-slot { padding: 10px; gap: 8px; }
+    .ascension-slot label { font-size: 13.5px; }
+    .asc-select-full { padding: 8px; font-size: 13.5px; }
     
     .calc-btn { font-size: 16px; padding: 15px 20px; }
     .result-section { padding: 20px 15px; }
