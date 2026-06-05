@@ -12,18 +12,18 @@ h1 { color: #f9a826; font-size: 32px; margin-bottom: 8px; }
 .player-card h2 { margin-bottom: 15px; color: #4ade80; font-size: 20px; border-bottom: 1px solid #2a2a40; padding-bottom: 10px; }
 .player-card:nth-child(2) h2 { color: #ff4b4b; }
 
-input[type="file"] { margin-bottom: 5px; width: 100%; font-size: 13px; color: #a0a0b0; }
+input[type="file"] { margin-bottom: 15px; width: 100%; font-size: 13px; color: #a0a0b0; cursor: pointer; }
 .status { font-size: 13px; color: #f9a826; margin-bottom: 15px; text-align: left; }
 
-.stats-box, .skill-box { background: #161622; padding: 15px; border-radius: 8px; text-align: left; margin-bottom: 15px; }
-.stats-box p { margin: 10px 0; display: flex; justify-content: space-between; align-items: center; font-size: 14px; color: #d0d0e0; }
-.stats-box input { width: 90px; padding: 6px; border-radius: 6px; border: 1px solid #33334d; background: #0b0b10; color: #fff; text-align: right; font-weight: bold; }
+/* 심플한 옵션 리스트 디자인 */
+.option-list { text-align: left; margin-top: 15px; }
+.simple-option-item { display: flex; justify-content: space-between; align-items: center; background: #2a2a40; padding: 10px 14px; border-radius: 8px; margin-bottom: 8px; font-size: 14.5px; border: 1px solid #33334d; }
+.opt-name { color: #d0d0e0; font-weight: 500; }
+.opt-value { color: #4ade80; font-weight: 800; font-size: 15px; }
 
-.skill-box h3 { font-size: 13px; color: #a0a0b0; margin-bottom: 10px; }
-.skill-box select { width: 100%; padding: 8px; margin-bottom: 8px; border-radius: 6px; background: #0b0b10; color: #fff; border: 1px solid #33334d; outline: none; }
-
-.calc-btn { background: linear-gradient(135deg, #4ade80, #059669); color: white; border: none; padding: 18px 40px; font-size: 18px; border-radius: 12px; cursor: pointer; font-weight: 800; transition: transform 0.2s; width: 100%; box-shadow: 0 4px 15px rgba(5, 150, 105, 0.3); margin-bottom: 30px; }
-.calc-btn:hover { transform: translateY(-3px); }
+.calc-btn { background: linear-gradient(135deg, #4ade80, #059669); color: white; border: none; padding: 18px 40px; font-size: 18px; border-radius: 12px; cursor: pointer; font-weight: 800; transition: transform 0.2s, opacity 0.2s; width: 100%; box-shadow: 0 4px 15px rgba(5, 150, 105, 0.3); margin-bottom: 30px; }
+.calc-btn:hover:not(:disabled) { transform: translateY(-3px); }
+.calc-btn:disabled { background: #2a2a40; color: #8e8e9f; cursor: not-allowed; box-shadow: none; opacity: 0.7; }
 
 .result-section { background: #1e1e2e; padding: 30px; border-radius: 16px; border: 1px solid #2a2a40; }
 .progress-bar { width: 100%; height: 24px; background: #161622; border-radius: 12px; overflow: hidden; margin: 20px 0; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5); }
