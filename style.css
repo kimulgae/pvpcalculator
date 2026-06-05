@@ -17,13 +17,16 @@ h1 { color: #f9a826; font-size: 32px; margin-bottom: 8px; }
 .input-row input { flex: 1; background: #161622; color: #fff; border: 1px solid #33334d; padding: 10px; border-radius: 8px; font-size: 15px; outline: none; }
 .input-row select { background: #2a2a40; color: #4ade80; border: 1px solid #33334d; padding: 10px; border-radius: 8px; font-weight: bold; outline: none; margin-left: 8px; cursor: pointer; }
 
-/* 3개 스킬 & 승천 슬롯 디자인 */
+/* 3개 스킬 & 공통 승천 디자인 */
 .skill-slots-container { margin-bottom: 10px; text-align: left; margin-top: 15px; }
 .skill-slots-container label { color: #f9a826; font-size: 14.5px; font-weight: 600; display: block; margin-bottom: 10px; }
-.skill-slots { display: flex; gap: 8px; }
-.skill-item { display: flex; flex-direction: column; gap: 5px; flex: 1; }
-.skill-item select { background: #2a2a40; color: #4ade80; border: 1px solid #33334d; padding: 8px 4px; border-radius: 8px; font-weight: bold; outline: none; cursor: pointer; font-size: 13px; text-align: center; appearance: none; }
-.skill-item .asc-select { color: #f9a826; font-size: 12px; background: #161622; }
+.skill-slots { display: flex; gap: 8px; margin-bottom: 10px; }
+.skill-item { display: flex; flex-direction: column; flex: 1; }
+.skill-item select { background: #2a2a40; color: #4ade80; border: 1px solid #33334d; padding: 10px 4px; border-radius: 8px; font-weight: bold; outline: none; cursor: pointer; font-size: 13.5px; text-align: center; appearance: none; }
+
+.ascension-slot { display: flex; align-items: center; justify-content: space-between; background: #161622; padding: 10px 15px; border-radius: 8px; border: 1px solid #33334d; }
+.ascension-slot label { margin-bottom: 0; color: #f9a826; font-size: 14.5px; }
+.asc-select-full { background: #2a2a40; color: #f9a826; border: 1px solid #33334d; padding: 6px 12px; border-radius: 8px; font-weight: bold; outline: none; cursor: pointer; font-size: 14px; }
 
 .divider { border: 0; height: 1px; background: #2a2a40; margin: 20px 0; }
 .scan-label { display: block; color: #a0a0b0; font-size: 13px; margin-bottom: 8px; }
