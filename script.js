@@ -4,12 +4,13 @@ const parsedData = {
     enemy: { stats: {} }
 };
 
-// --- [핵심 추가] 옵션 이름 오타 교정 및 중복 방지기 ---
+// --- [핵심 추가] 철통방어! 공식 옵션만 통과시키는 입구컷 로직 ---
 function normalizeStatName(rawName) {
-    const str = rawName.replace(/\s+/g, ''); // 공백을 모두 지우고 판별
+    // 띄어쓰기를 지우고 대문자로 변환해서 검사
+    const str = rawName.replace(/\s+/g, '').toUpperCase(); 
 
     if (str.includes("치명타확")) return "치명타 확률";
-    if (str.includes("치명타피") || str.includes("치명타애") || str.includes("치명타찌")) return "치명타 피해";
+    if (str.includes("치명타피") || str.includes("치명타애") || str.includes("치명타찌") || str.includes("치명타")) return "치명타 피해";
     if (str.includes("블록")) return "블록 확률";
     if (str.includes("재생")) return "체력 재생";
     if (str.includes("흡수")) return "생명력 흡수";
@@ -17,15 +18,16 @@ function normalizeStatName(rawName) {
     if (str.includes("근접")) return "근접 피해";
     if (str.includes("원거리")) return "원거리 피해";
     if (str.includes("속도")) return "공격 속도";
-    if (str.includes("대기시간")) return "스킬 재사용 대기시간";
+    if (str.includes("대기시간") || str.includes("재사용")) return "스킬 재사용 대기시간";
     if (str.includes("스킬피") || str.includes("스킬애") || str.includes("스킬찌") || str.includes("스킬씨")) return "스킬 피해";
     
-    // 위 조건들에 걸리지 않고 피/애/해/찌/씨 가 있다면 단일 '피해' 옵션으로 강력 통일
+    // 위 옵션들을 다 거치고 남은 것 중 '피해' 관련 글자가 있으면 단일 '피해'로 통일
     if (str.includes("피해") || str.includes("피애") || str.includes("씨애") || str.includes("찌애") || str.includes("파해")) {
         return "피해";
     }
 
-    return rawName.trim(); // 사전에 없는 값이면 원본 그대로 출력
+    // ★ 공식 옵션 사전에 없는 글자(예: "AI", "Q!", "스탯" 등)는 null을 반환하여 쓰레기통으로 직행!
+    return null; 
 }
 
 // --- [1] 세부 옵션 전용 초고속 스캐너 ---
@@ -59,11 +61,13 @@ async function processImages(fileInputId, statusId, listId, playerKey) {
                     const value = parseFloat(optMatch[1].replace(/,/g, '.'));
                     const rawName = optMatch[2].trim();
                     
-                    // 1. 오타 교정기로 이름 깔끔하게 통일
+                    // 1. 이름 교정기 통과
                     const cleanName = normalizeStatName(rawName);
                     
-                    // 2. 객체에 저장 (이름이 똑같으면 자동으로 덮어씌워지므로 중복 리스트업 절대 불가)
-                    parsedData[playerKey].stats[cleanName] = value; 
+                    // 2. cleanName이 null이 아닐 때(즉, 진짜 게임 옵션일 때)만 리스트에 추가!
+                    if (cleanName !== null) {
+                        parsedData[playerKey].stats[cleanName] = value; 
+                    }
                 }
             });
         }
@@ -80,7 +84,6 @@ async function processImages(fileInputId, statusId, listId, playerKey) {
         statusEl.style.color = "#ff4b4b";
     }
 }
-
 function renderOptionList(stats, containerId) {
     const container = document.getElementById(containerId);
     container.innerHTML = ""; 
