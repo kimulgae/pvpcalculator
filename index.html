@@ -10,7 +10,7 @@
 <body>
     <div class="container">
         <h1>⚔️ PVP 승률 예측기 <span class="badge">PRO</span></h1>
-        <p class="subtitle">기본 스탯 입력, 세부 옵션 스캔, 장착 스킬만 선택하세요!</p>
+        <p class="subtitle">기본 스탯을 입력하고, 스크린샷을 올리면 옵션과 스킬이 자동 스캔됩니다!</p>
         
         <div class="upload-section">
             <!-- 나의 세팅 -->
@@ -41,35 +41,14 @@
                             <option value="q">Q</option>
                         </select>
                     </div>
-                    <div class="input-row">
-                        <label>장착 스킬</label>
-                        <select id="mySkill">
-                            <option value="None" selected>스킬 없음</option>
-                            <option value="Meat">고기 (Meat)</option>
-                            <option value="Arrows">화살 (Arrows)</option>
-                            <option value="Shout">외침 (Shout)</option>
-                            <option value="Berserk">광전사 (Berserk)</option>
-                            <option value="Cannon">포격 (Cannon)</option>
-                            <option value="Shuriken">수리검 (Shuriken)</option>
-                            <option value="Buff">버프 (Buff)</option>
-                            <option value="ArrowRains">화살비 (Arrow Rains)</option>
-                            <option value="Thorns">가시 (Thorns)</option>
-                            <option value="Bomb">폭탄 (Bomb)</option>
-                            <option value="Meteorite">운석 (Meteorite)</option>
-                            <option value="Morale">사기 (Morale)</option>
-                            <option value="Lightning">번개 (Lightning)</option>
-                            <option value="Stampede">쇄도 (Stampede)</option>
-                            <option value="Worm">벌레 (Worm)</option>
-                            <option value="Drone">드론 (Drone)</option>
-                            <option value="HigherMorale">높은 사기 (Higher Morale)</option>
-                            <option value="StrafeRun">기총 소사 (Strafe Run)</option>
-                        </select>
-                    </div>
                 </div>
                 <hr class="divider">
                 <label class="scan-label">📸 세부 옵션 및 스킬 자동 스캔</label>
                 <input type="file" id="myImage" accept="image/*" multiple>
                 <p class="status" id="myStatus">스크린샷을 올리면 아래에 옵션이 추가됩니다.</p>
+                
+                <!-- 자동 감지된 스킬을 보여주는 곳 -->
+                <div id="mySkillDisplay" class="skill-display">🔮 감지된 스킬: <span class="empty-skill">없음</span></div>
                 <div id="myOptionList" class="option-list"></div>
             </div>
 
@@ -101,35 +80,14 @@
                             <option value="q">Q</option>
                         </select>
                     </div>
-                    <div class="input-row">
-                        <label>장착 스킬</label>
-                        <select id="enemySkill">
-                            <option value="None" selected>스킬 없음</option>
-                            <option value="Meat">고기 (Meat)</option>
-                            <option value="Arrows">화살 (Arrows)</option>
-                            <option value="Shout">외침 (Shout)</option>
-                            <option value="Berserk">광전사 (Berserk)</option>
-                            <option value="Cannon">포격 (Cannon)</option>
-                            <option value="Shuriken">수리검 (Shuriken)</option>
-                            <option value="Buff">버프 (Buff)</option>
-                            <option value="ArrowRains">화살비 (Arrow Rains)</option>
-                            <option value="Thorns">가시 (Thorns)</option>
-                            <option value="Bomb">폭탄 (Bomb)</option>
-                            <option value="Meteorite">운석 (Meteorite)</option>
-                            <option value="Morale">사기 (Morale)</option>
-                            <option value="Lightning">번개 (Lightning)</option>
-                            <option value="Stampede">쇄도 (Stampede)</option>
-                            <option value="Worm">벌레 (Worm)</option>
-                            <option value="Drone">드론 (Drone)</option>
-                            <option value="HigherMorale">높은 사기 (Higher Morale)</option>
-                            <option value="StrafeRun">기총 소사 (Strafe Run)</option>
-                        </select>
-                    </div>
                 </div>
                 <hr class="divider">
                 <label class="scan-label">📸 세부 옵션 및 스킬 자동 스캔</label>
                 <input type="file" id="enemyImage" accept="image/*" multiple>
                 <p class="status" id="enemyStatus">스크린샷을 올리면 아래에 옵션이 추가됩니다.</p>
+                
+                <!-- 자동 감지된 스킬을 보여주는 곳 -->
+                <div id="enemySkillDisplay" class="skill-display">🔮 감지된 스킬: <span class="empty-skill">없음</span></div>
                 <div id="enemyOptionList" class="option-list"></div>
             </div>
         </div>
