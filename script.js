@@ -3,7 +3,6 @@ const parsedData = {
     enemy: { stats: {} }
 };
 
-// HTML 코드를 깔끔하게 하기 위해 JS에서 스킬 목록을 동적으로 넣어줍니다.
 window.onload = () => {
     const skillHTML = `
         <option value="None" selected>스킬 없음</option>
@@ -31,7 +30,6 @@ window.onload = () => {
     });
 };
 
-// [1] 스킬 데이터베이스 (60초 전투 기준)
 const SKILL_DB = {
     "Meat": { type: "buff", dmgBonus: 0, hpBonus: 0.0001, duration: 10, count: 7.5 },
     "Arrows": { type: "dmg", power: 0.0002, cooldown: 7, count: 8.57 },
@@ -53,7 +51,7 @@ const SKILL_DB = {
     "StrafeRun": { type: "dmg", power: 12.0, cooldown: 10, count: 6 }
 };
 
-// [2] 승천 단계별 폭발적인 배율 데이터
+// [1] 통합 승천 배율
 const ASCENSION_MULTIPLIERS = {
     0: 1.0,
     1: 49.0,
@@ -61,36 +59,33 @@ const ASCENSION_MULTIPLIERS = {
     3: 124999.0
 };
 
-// [3] 옵션 이름 교정기 (오독 및 유령옵션 방지)
 function normalizeStatName(rawName) {
     const str = rawName.replace(/\s+/g, '').toUpperCase(); 
-    if (str.includes("확률") || str.includes("확럴") || str.includes("확룰")) return (str.includes("블록") || str.includes("블럭")) ? "블록 확률" : "치명타 확률"; 
+    if (str.includes("확률")) return (str.includes("블록")) ? "블록 확률" : "치명타 확률"; 
     if (str.includes("재생")) return "체력 재생";
-    if (str.includes("흡수") || str.includes("흡슈")) return "생명력 흡수";
-    if (str.includes("더블") || str.includes("떠블")) return "더블 찬스";
-    if (str.includes("속도") || str.includes("속토")) return "공격 속도";
-    if (str.includes("대기") || str.includes("재사용")) return "스킬 재사용 대기시간";
+    if (str.includes("흡수")) return "생명력 흡수";
+    if (str.includes("더블")) return "더블 찬스";
+    if (str.includes("속도")) return "공격 속도";
+    if (str.includes("대기")) return "스킬 재사용 대기시간";
     
     const hasDmg = str.includes("피해") || str.includes("피애") || str.includes("씨애") || str.includes("찌애") || str.includes("파해");
     if (hasDmg) {
-        if (str.includes("근접") || str.includes("건접")) return "근접 피해";
-        if (str.includes("원거리") || str.includes("원거")) return "원거리 피해";
-        if (str.includes("스킬") || str.includes("스길")) return "스킬 피해";
+        if (str.includes("근접")) return "근접 피해";
+        if (str.includes("원거리")) return "원거리 피해";
+        if (str.includes("스킬")) return "스킬 피해";
         if (str.length >= 4) return "치명타 피해"; 
         return "피해";
     }
-    if (str.includes("치명") || str.includes("지명") || str.includes("명타")) return "치명타 피해"; 
-
+    if (str.includes("치명")) return "치명타 피해"; 
     return null;
 }
 
-// [4] 자동 스캐너 (순수하게 옵션만 빠르고 정확하게 스캔)
 async function processImages(fileInputId, statusId, listId, playerKey) {
     const files = document.getElementById(fileInputId).files;
     if (files.length === 0) return;
 
     const statusEl = document.getElementById(statusId);
-    statusEl.innerText = `⏳ 총 ${files.length}장의 이미지 스캔 중...`;
+    statusEl.innerText = `⏳ 분석 중...`;
     statusEl.style.color = "#f9a826";
 
     parsedData[playerKey].stats = {}; 
@@ -113,7 +108,7 @@ async function processImages(fileInputId, statusId, listId, playerKey) {
         statusEl.style.color = "#4ade80";
 
     } catch (e) { 
-        statusEl.innerText = `❌ 에러 발생: 이미지를 인식할 수 없습니다.`;
+        statusEl.innerText = `❌ 에러 발생`;
         statusEl.style.color = "#ff4b4b";
     }
 }
@@ -122,7 +117,7 @@ function renderOptionList(stats, containerId) {
     const container = document.getElementById(containerId);
     container.innerHTML = ""; 
     if(Object.keys(stats).length === 0) {
-        container.innerHTML = "<p style='color: #8e8e9f; font-size: 13px; margin-top: 10px;'>인식된 세부 옵션이 없습니다.</p>";
+        container.innerHTML = "<p style='color: #8e8e9f; font-size: 13px; margin-top: 10px;'>인식된 옵션이 없습니다.</p>";
         return;
     }
     Object.keys(stats).forEach(name => {
@@ -131,10 +126,8 @@ function renderOptionList(stats, containerId) {
     });
 }
 
-// [5] 정밀 승률 예측 엔진 (기본 스탯 + 옵션 시너지 + 승천 스킬 배율)
 document.getElementById('calcBtn').addEventListener('click', () => {
     
-    // K, M, B 등 단위 변환
     const getMultiplier = (u) => ({'k': 1e3, 'm': 1e6, 'b': 1e9, 't': 1e12, 'q': 1e15}[u] || 1);
     const getVal = (v, u) => parseFloat(document.getElementById(v).value || 0) * getMultiplier(document.getElementById(u).value);
 
@@ -146,26 +139,24 @@ document.getElementById('calcBtn').addEventListener('click', () => {
         return;
     }
 
-    // 시너지 계산 로직
     const calcEff = (stats, pKey) => {
         const getS = (k) => stats[Object.keys(stats).find(x => x.includes(k))] / 100 || 0;
         
-        // 1. 기본 옵션 시너지 합산
         let multi = 1.0;
         multi *= (1 + getS("피해"));
         multi *= (1 + getS("공격 속도"));
         multi *= (1 + getS("더블 찬스"));
         multi *= (1 + (getS("치명타 확률") * (0.2 + getS("치명타 피해"))));
 
-        // 2. 3개의 스킬 슬롯과 각 스킬의 승천 배율 누적 계산
+        // [2] 통합 승천 단계 1번만 가져오기
+        const ascLevel = parseInt(document.getElementById(pKey + 'Ascension').value);
+        const ascBonus = ASCENSION_MULTIPLIERS[ascLevel] || 1.0;
+
         for (let i = 1; i <= 3; i++) {
             const skillKey = document.getElementById(pKey + 'Skill' + i).value;
-            const ascLevel = parseInt(document.getElementById(pKey + 'Skill' + i + 'Asc').value);
             const s = SKILL_DB[skillKey];
             
             if (s) {
-                const ascBonus = ASCENSION_MULTIPLIERS[ascLevel] || 1.0; // 승천 배율 가져오기
-                
                 if (s.type === "dmg") {
                     multi += (s.power * s.count * ascBonus); 
                 } else if (s.type === "buff") {
@@ -180,7 +171,6 @@ document.getElementById('calcBtn').addEventListener('click', () => {
     const myEff = calcEff(parsedData.my.stats, 'my');
     const enEff = calcEff(parsedData.enemy.stats, 'enemy');
 
-    // 최종 승률 계산
     const winRate = ((myBase * myEff) / (myBase * myEff + enemyBase * enEff) * 100);
     const finalRate = Math.max(1, Math.min(99.9, winRate)).toFixed(1);
     
@@ -195,6 +185,5 @@ document.getElementById('calcBtn').addEventListener('click', () => {
     document.getElementById('feedbackText').innerHTML = feedback;
 });
 
-// 이벤트 리스너 연결
 document.getElementById('myImage').addEventListener('change', () => processImages('myImage', 'myStatus', 'myOptionList', 'my'));
 document.getElementById('enemyImage').addEventListener('change', () => processImages('enemyImage', 'enemyStatus', 'enemyOptionList', 'enemy'));
