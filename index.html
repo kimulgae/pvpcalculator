@@ -10,9 +10,10 @@
 <body>
     <div class="container">
         <h1>⚔️ PVP 승률 예측기 <span class="badge">PRO</span></h1>
-        <p class="subtitle">기본 스탯은 직접 입력하고, 옵션은 스캔하고, 스킨/스킬을 선택하세요!</p>
+        <p class="subtitle">기본 스탯 입력, 세부 옵션 스캔, 장착 스킬만 선택하세요!</p>
         
         <div class="upload-section">
+            <!-- 나의 세팅 -->
             <div class="player-card">
                 <h2>나의 세팅</h2>
                 <div class="manual-input-group">
@@ -40,39 +41,39 @@
                             <option value="q">Q</option>
                         </select>
                     </div>
-                </div>
-
-                <hr class="divider">
-
-                <div class="manual-input-group">
-                    <div class="input-row">
-                        <label>스킨 모션</label>
-                        <select id="mySkin">
-                            <option value="1.08">S+ 티어 (0.3s) - 잎사귀 등</option>
-                            <option value="1.03">A+ 티어 (0.48s)</option>
-                            <option value="1.00" selected>B 티어 (0.68s)</option>
-                            <option value="0.92">F 티어 (1.10s) - 무거운 도끼 등</option>
-                        </select>
-                    </div>
                     <div class="input-row">
                         <label>장착 스킬</label>
                         <select id="mySkill">
-                            <option value="1.0" selected>선택 안함</option>
-                            <option value="1.15">번개 (Lightning)</option>
-                            <option value="1.20">쇄도 (Stampede)</option>
-                            <option value="1.30">드론 (Drone)</option>
+                            <option value="None" selected>스킬 없음</option>
+                            <option value="Meat">고기 (Meat)</option>
+                            <option value="Arrows">화살 (Arrows)</option>
+                            <option value="Shout">외침 (Shout)</option>
+                            <option value="Berserk">광전사 (Berserk)</option>
+                            <option value="Cannon">포격 (Cannon)</option>
+                            <option value="Shuriken">수리검 (Shuriken)</option>
+                            <option value="Buff">버프 (Buff)</option>
+                            <option value="ArrowRains">화살비 (Arrow Rains)</option>
+                            <option value="Thorns">가시 (Thorns)</option>
+                            <option value="Bomb">폭탄 (Bomb)</option>
+                            <option value="Meteorite">운석 (Meteorite)</option>
+                            <option value="Morale">사기 (Morale)</option>
+                            <option value="Lightning">번개 (Lightning)</option>
+                            <option value="Stampede">쇄도 (Stampede)</option>
+                            <option value="Worm">벌레 (Worm)</option>
+                            <option value="Drone">드론 (Drone)</option>
+                            <option value="HigherMorale">높은 사기 (Higher Morale)</option>
+                            <option value="StrafeRun">기총 소사 (Strafe Run)</option>
                         </select>
                     </div>
                 </div>
-
                 <hr class="divider">
-                
-                <label class="scan-label">📸 세부 옵션 자동 스캔 (여러 장 가능)</label>
+                <label class="scan-label">📸 세부 옵션 및 스킬 자동 스캔</label>
                 <input type="file" id="myImage" accept="image/*" multiple>
                 <p class="status" id="myStatus">스크린샷을 올리면 아래에 옵션이 추가됩니다.</p>
                 <div id="myOptionList" class="option-list"></div>
             </div>
 
+            <!-- 상대방 세팅 -->
             <div class="player-card">
                 <h2>상대방 세팅</h2>
                 <div class="manual-input-group">
@@ -100,34 +101,33 @@
                             <option value="q">Q</option>
                         </select>
                     </div>
-                </div>
-
-                <hr class="divider">
-
-                <div class="manual-input-group">
-                    <div class="input-row">
-                        <label>스킨 모션</label>
-                        <select id="enemySkin">
-                            <option value="1.08">S+ 티어 (0.3s) - 잎사귀 등</option>
-                            <option value="1.03">A+ 티어 (0.48s)</option>
-                            <option value="1.00" selected>B 티어 (0.68s)</option>
-                            <option value="0.92">F 티어 (1.10s) - 무거운 도끼 등</option>
-                        </select>
-                    </div>
                     <div class="input-row">
                         <label>장착 스킬</label>
                         <select id="enemySkill">
-                            <option value="1.0" selected>선택 안함</option>
-                            <option value="1.15">번개 (Lightning)</option>
-                            <option value="1.20">쇄도 (Stampede)</option>
-                            <option value="1.30">드론 (Drone)</option>
+                            <option value="None" selected>스킬 없음</option>
+                            <option value="Meat">고기 (Meat)</option>
+                            <option value="Arrows">화살 (Arrows)</option>
+                            <option value="Shout">외침 (Shout)</option>
+                            <option value="Berserk">광전사 (Berserk)</option>
+                            <option value="Cannon">포격 (Cannon)</option>
+                            <option value="Shuriken">수리검 (Shuriken)</option>
+                            <option value="Buff">버프 (Buff)</option>
+                            <option value="ArrowRains">화살비 (Arrow Rains)</option>
+                            <option value="Thorns">가시 (Thorns)</option>
+                            <option value="Bomb">폭탄 (Bomb)</option>
+                            <option value="Meteorite">운석 (Meteorite)</option>
+                            <option value="Morale">사기 (Morale)</option>
+                            <option value="Lightning">번개 (Lightning)</option>
+                            <option value="Stampede">쇄도 (Stampede)</option>
+                            <option value="Worm">벌레 (Worm)</option>
+                            <option value="Drone">드론 (Drone)</option>
+                            <option value="HigherMorale">높은 사기 (Higher Morale)</option>
+                            <option value="StrafeRun">기총 소사 (Strafe Run)</option>
                         </select>
                     </div>
                 </div>
-
                 <hr class="divider">
-                
-                <label class="scan-label">📸 세부 옵션 자동 스캔 (여러 장 가능)</label>
+                <label class="scan-label">📸 세부 옵션 및 스킬 자동 스캔</label>
                 <input type="file" id="enemyImage" accept="image/*" multiple>
                 <p class="status" id="enemyStatus">스크린샷을 올리면 아래에 옵션이 추가됩니다.</p>
                 <div id="enemyOptionList" class="option-list"></div>
@@ -138,10 +138,8 @@
         
         <div class="result-section">
             <h2 id="resultText">예상 승률: - %</h2>
-            <div class="progress-bar">
-                <div id="winRateFill" class="progress-fill"></div>
-            </div>
-            <p id="feedbackText" class="feedback">기본 스탯을 입력하고 옵션을 스캔한 뒤 계산을 눌러주세요.</p>
+            <div class="progress-bar"><div id="winRateFill" class="progress-fill"></div></div>
+            <p id="feedbackText" class="feedback">스탯과 옵션을 입력/스캔하고 계산을 눌러주세요.</p>
         </div>
     </div>
     
