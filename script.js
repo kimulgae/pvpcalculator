@@ -53,7 +53,7 @@ const SKILL_DB = {
 
 const ASCENSION_MULTIPLIERS = { 0: 1.0, 1: 49.0, 2: 2499.0, 3: 124999.0 };
 
-// [무적의 스캔 로직] AI가 읽은 텍스트에서 키워드와 숫자만 뜯어옵니다.
+// [무적의 스캔 로직] 상단 프로필 절대 무시 & 10000% 이상 쓰레기 데이터 폐기
 async function processImages(fileInputId, statusId, listId, playerKey) {
     const files = document.getElementById(fileInputId).files;
     if (files.length === 0) return;
@@ -66,15 +66,18 @@ async function processImages(fileInputId, statusId, listId, playerKey) {
 
     try {
         for (let i = 0; i < files.length; i++) {
-            statusEl.innerText = `⏳ ${i + 1}/${files.length}번째 이미지 분석 중... (잠시만 기다려주세요)`;
-            
+            statusEl.innerText = `⏳ ${i + 1}/${files.length}번째 이미지 분석 중...`;
             const { data: { text } } = await Tesseract.recognize(URL.createObjectURL(files[i]), 'kor+eng');
 
             text.split('\n').forEach(line => {
-                // 1. 띄어쓰기를 싹 다 제거해서 엉망인 텍스트를 압축
                 const cleanStr = line.replace(/\s+/g, '');
                 
-                // 2. 키워드 찾기 (오타까지 모두 포용)
+                // 🚨 [핵심 방어막] 상단의 "총 피해", "총 체력", "Lv", "k", "m" 등 프로필 정보는 무조건 차단!
+                if (cleanStr.includes("총") || cleanStr.includes("Lv") || cleanStr.includes("대장간") || cleanStr.includes("k") || cleanStr.includes("m")) {
+                    return; // 이 줄은 완전히 무시하고 넘어갑니다.
+                }
+
+                // 2. 순수 세부 옵션 키워드 찾기
                 let statName = null;
                 if (cleanStr.includes("치명") || cleanStr.includes("지명")) {
                     statName = (cleanStr.includes("피해") || cleanStr.includes("피애")) ? "치명타 피해" : "치명타 확률";
@@ -97,17 +100,21 @@ async function processImages(fileInputId, statusId, listId, playerKey) {
                 } else if (cleanStr.includes("재생") || cleanStr.includes("제생")) {
                     statName = "체력 재생";
                 } else if (cleanStr.includes("체력") || cleanStr.includes("채력")) {
-                    statName = "체력"; // 재생 먼저 거르고 남은 진짜 '체력'
+                    statName = "체력"; 
                 } else if (cleanStr.includes("피해") || cleanStr.includes("피애")) {
-                    statName = "피해"; // 근접, 원거리, 스킬, 치명타 다 거르고 남은 순수 '피해'
+                    statName = "피해"; 
                 }
 
-                // 3. 옵션을 찾았다면, 해당 줄에 있는 '숫자'만 쏙 빼옴
+                // 3. 숫자 추출 및 10000% 오작동 방어
                 if (statName) {
-                    const numMatch = cleanStr.match(/(\d+[\.,]\d+|\d+)/); // 소수점 포함 숫자만 추출
+                    const numMatch = cleanStr.match(/([+-]?\d+[\.,]?\d*)/); 
                     if (numMatch) {
-                        const value = parseFloat(numMatch[1].replace(',', '.')); // 쉼표는 마침표로 변환
-                        parsedData[playerKey].stats[statName] = value;
+                        const value = parseFloat(numMatch[1].replace(',', '.')); 
+                        
+                        // 🚨 [안전 장치] OCR이 30500315 같은 미친 값을 읽으면 쓰레기로 간주하고 버림
+                        if (value < 10000) {
+                            parsedData[playerKey].stats[statName] = value;
+                        }
                     }
                 }
             });
@@ -152,7 +159,6 @@ document.getElementById('calcBtn').addEventListener('click', () => {
         const getS = (k) => stats[k] / 100 || 0; 
         
         let multi = 1.0;
-        // 스캔된 모든 공격/체력 옵션 완벽 반영
         multi *= (1 + getS("피해") + getS("근접 피해") + getS("원거리 피해") + getS("스킬 피해"));
         multi *= (1 + getS("체력")); 
         multi *= (1 + getS("공격 속도"));
