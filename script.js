@@ -1,14 +1,10 @@
-// 양쪽 데이터가 모두 준비되었는지 확인하는 플래그
-let isMyDataReady = false;
-let isEnemyDataReady = false;
-
-// 파싱된 데이터를 저장할 메인 객체
+// 옵션 데이터를 저장할 객체
 const parsedData = {
-    my: { power: 1, dmg: 0, hp: 0, stats: {} },
-    enemy: { power: 1, dmg: 0, hp: 0, stats: {} }
+    my: { stats: {} },
+    enemy: { stats: {} }
 };
 
-// --- [1] 다중 이미지 자동 분석 모듈 ---
+// --- [1] 세부 옵션 전용 초고속 스캐너 ---
 async function processImages(fileInputId, statusId, listId, playerKey) {
     const files = document.getElementById(fileInputId).files;
     if (files.length === 0) return;
@@ -17,10 +13,7 @@ async function processImages(fileInputId, statusId, listId, playerKey) {
     statusEl.innerText = `⏳ 총 ${files.length}장의 이미지 스캔 중...`;
     statusEl.style.color = "#f9a826";
 
-    parsedData[playerKey].stats = {};
-    let maxDmg = 0;
-    let maxHp = 0;
-    let parsedPower = 1;
+    parsedData[playerKey].stats = {}; // 초기화
 
     try {
         for (let i = 0; i < files.length; i++) {
@@ -30,78 +23,14 @@ async function processImages(fileInputId, statusId, listId, playerKey) {
             const { data: { text } } = await Tesseract.recognize(imageUrl, 'kor+eng', {
                 logger: m => {
                     if (m.status === 'recognizing text') {
-                        statusEl.innerText = `🔍 [${i + 1}/${files.length}] 이미지 분석 중... ${Math.round(m.progress * 100)}%`;
+                        statusEl.innerText = `🔍 옵션 스캔 중... ${Math.round(m.progress * 100)}%`;
                     }
                 }
             });
 
-            // 1. 기본 전투력(CP) 추출 (최상단에 위치한 B 단위 숫자)
-            // 전투력을 알아야 M인지 B인지 똑똑하게 유추할 수 있습니다.
-            if (parsedPower === 1) {
-                const cpMatch = text.match(/([\d\.,]+)\s*([mbMB])/);
-                if (cpMatch) {
-                    let pVal = parseFloat(cpMatch[1].replace(/,/g, '.'));
-                    if (cpMatch[2].toLowerCase() === 'm') pVal /= 1000;
-                    parsedPower = pVal;
-                    parsedData[playerKey].power = parsedPower;
-                }
-            }
-
-            // [핵심] M / B 자동 유추 헬퍼 함수
-            const deduceUnit = (val, extractedUnit) => {
-                let unit = extractedUnit.toLowerCase();
-                if (unit.includes('m') || unit.includes('n') || unit.includes('w')) return 'm';
-                if (unit.includes('b') || unit.includes('v') || unit.includes('d') || unit.includes('6')) return 'b';
-                
-                // OCR이 단위를 아예 빼먹었을 경우 수학적 추론!
-                // 피해량/체력 숫자가 전투력의 2배보다 크다면? 그건 절대 B일 수 없으므로 무조건 M으로 판정!
-                if (parsedPower > 1) {
-                    return (val > parsedPower * 2) ? 'm' : 'b';
-                } else {
-                    return (val > 50) ? 'm' : 'b';
-                }
-            };
-
+            // 1. 오직 세부 옵션만 정밀하게 긁어옵니다 (+ 수치 % 형태)
             const lines = text.split('\n');
             lines.forEach(line => {
-                
-                // 2. 총 피해 추출
-                const dmgMatch = line.match(/([\d\.,]+)\s*([a-zA-Z가-힣6]*)\s*[총종통충층]\s*피\s*[해히]/i);
-                if (dmgMatch) {
-                    let numStr = dmgMatch[1].replace(/,/g, '.');
-                    let unitStr = dmgMatch[2];
-
-                    if (unitStr === '' && numStr.endsWith('6') && numStr.includes('.')) {
-                        numStr = numStr.slice(0, -1);
-                        unitStr = 'b';
-                    }
-
-                    let val = parseFloat(numStr);
-                    let finalUnit = deduceUnit(val, unitStr);
-
-                    if (finalUnit === 'm') val /= 1000;
-                    if (val > maxDmg && val < 5000) maxDmg = val;
-                }
-
-                // 3. 총 체력 추출
-                const hpMatch = line.match(/([\d\.,]+)\s*([a-zA-Z가-힣6]*)\s*[총종통충층]\s*[체채제]\s*[력럭릭]/i);
-                if (hpMatch) {
-                    let numStr = hpMatch[1].replace(/,/g, '.');
-                    let unitStr = hpMatch[2];
-
-                    if (unitStr === '' && numStr.endsWith('6') && numStr.includes('.')) {
-                        numStr = numStr.slice(0, -1);
-                        unitStr = 'b';
-                    }
-
-                    let val = parseFloat(numStr);
-                    let finalUnit = deduceUnit(val, unitStr);
-
-                    if (finalUnit === 'm') val /= 1000;
-                    if (val > maxHp && val < 5000) maxHp = val;
-                }
-
-                // 4. 세부 옵션 추출 (+ 수치 % 형태)
                 const optMatch = line.match(/(?:\+|-)?\s*([\d\.,]+)\s*%\s*([가-힣a-zA-Z\s]+)/);
                 if (optMatch) {
                     const value = parseFloat(optMatch[1].replace(/,/g, '.'));
@@ -111,22 +40,11 @@ async function processImages(fileInputId, statusId, listId, playerKey) {
             });
         }
 
-        parsedData[playerKey].dmg = maxDmg || 1;
-        parsedData[playerKey].hp = maxHp || 1;
-
         // UI 리스트 그리기
         renderOptionList(parsedData[playerKey].stats, listId);
 
-        // 표시용 포맷팅
-        const displayDmg = parsedData[playerKey].dmg === 1 ? "?" : parsedData[playerKey].dmg.toFixed(3);
-        const displayHp = parsedData[playerKey].hp === 1 ? "?" : parsedData[playerKey].hp.toFixed(3);
-
-        statusEl.innerText = `✅ 스캔 완료! (총 피해: ${displayDmg}B / 총 체력: ${displayHp}B)`;
+        statusEl.innerText = `✅ 세부 옵션 스캔 완료!`;
         statusEl.style.color = "#4ade80";
-
-        if (playerKey === 'my') isMyDataReady = true;
-        if (playerKey === 'enemy') isEnemyDataReady = true;
-        checkReadyState();
 
     } catch (error) {
         console.error(error);
@@ -135,7 +53,6 @@ async function processImages(fileInputId, statusId, listId, playerKey) {
     }
 }
 
-// 추출한 옵션을 심플한 목록으로 그려주는 함수
 function renderOptionList(stats, containerId) {
     const container = document.getElementById(containerId);
     container.innerHTML = ""; 
@@ -159,33 +76,44 @@ function renderOptionList(stats, containerId) {
     });
 }
 
-function checkReadyState() {
-    const btn = document.getElementById('calcBtn');
-    if (isMyDataReady && isEnemyDataReady) {
-        btn.disabled = false;
-        btn.innerText = "승률 시뮬레이션 시작";
-        btn.style.background = "linear-gradient(135deg, #4ade80, #059669)";
-    }
-}
-
+// 이벤트 연결
 document.getElementById('myImage').addEventListener('change', () => processImages('myImage', 'myStatus', 'myOptionList', 'my'));
 document.getElementById('enemyImage').addEventListener('change', () => processImages('enemyImage', 'enemyStatus', 'enemyOptionList', 'enemy'));
 
 
-// --- [2] 정밀 승률 예측 엔진 ---
+// --- [2] 정밀 승률 예측 엔진 (수동 입력값 + 스캔값 결합) ---
 document.getElementById('calcBtn').addEventListener('click', () => {
-    // 기초 점수 = 총 피해 * 총 체력
-    const myBase = parsedData.my.dmg * parsedData.my.hp;
-    const enemyBase = parsedData.enemy.dmg * parsedData.enemy.hp;
+    
+    // 수동 입력값 가져오기 로직 (M은 B단위로 환산하기 위해 1000으로 나눔)
+    const getManualInput = (idVal, idUnit) => {
+        const val = parseFloat(document.getElementById(idVal).value) || 0;
+        const unit = document.getElementById(idUnit).value;
+        return unit === 'm' ? val / 1000 : val;
+    };
+
+    const myDmg = getManualInput('myDmgVal', 'myDmgUnit');
+    const myHp = getManualInput('myHpVal', 'myHpUnit');
+    const enemyDmg = getManualInput('enemyDmgVal', 'enemyDmgUnit');
+    const enemyHp = getManualInput('enemyHpVal', 'enemyHpUnit');
+
+    // 필수값 검증
+    if (myDmg === 0 || myHp === 0 || enemyDmg === 0 || enemyHp === 0) {
+        alert("양쪽의 '총 피해'와 '총 체력'을 모두 숫자로 입력해주세요!");
+        return;
+    }
+
+    // 기초 점수 (단위가 통일된 B값으로 계산)
+    const myBase = myDmg * myHp;
+    const enemyBase = enemyDmg * enemyHp;
 
     const getStat = (statsObj, keyword) => {
         const foundKey = Object.keys(statsObj).find(k => k.includes(keyword));
         return foundKey ? (statsObj[foundKey] / 100) : 0;
     };
 
+    // 옵션 효율 시너지 계산
     const calculateEfficiency = (statsObj) => {
         let multi = 1.0;
-        
         const dmg = getStat(statsObj, "피해");
         const as = getStat(statsObj, "공격 속도");
         const cr = getStat(statsObj, "치명타 확률");
@@ -223,7 +151,7 @@ document.getElementById('calcBtn').addEventListener('click', () => {
     } else if (winRate > 40) {
         feedback = `⚔️ 예상 결과: <b>박빙의 승부</b><br>전투력과 옵션 효율이 거의 비슷합니다. 치명타나 더블 타격의 운에 따라 결과가 달라질 수 있습니다.`;
     } else {
-        feedback = `⚠️ 예상 결과: <b>패배 위험</b><br>상대방의 세부 옵션 효율이 더 높습니다. 부족한 옵션을 보강하여 배율을 높여보세요.`;
+        feedback = `⚠️ 예상 결과: <b>패배 위험</b><br>상대방의 스탯 및 옵션 효율이 더 높습니다. 부족한 옵션을 보강하여 배율을 높여보세요.`;
     }
     document.getElementById('feedbackText').innerHTML = feedback;
 });
