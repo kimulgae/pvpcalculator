@@ -1,90 +1,83 @@
-// 양쪽 데이터가 모두 준비되었는지 확인하는 플래그
 let isMyDataReady = false;
 let isEnemyDataReady = false;
 
-// 파싱된 데이터를 저장할 메인 객체
+// 파싱된 데이터를 저장할 메인 객체 (전투력 대신 dmg와 hp로 명확히 분리)
 const parsedData = {
-    my: { power: 0, hp: 0, stats: {} },
-    enemy: { power: 0, hp: 0, stats: {} }
+    my: { dmg: 0, hp: 0, stats: {} },
+    enemy: { dmg: 0, hp: 0, stats: {} }
 };
 
-// --- [1] 이미지 자동 분석 모듈 (기본 스탯 인식 강화) ---
-async function processImage(fileInputId, statusId, listId, playerKey) {
-    const file = document.getElementById(fileInputId).files[0];
-    if (!file) return;
+// --- [1] 다중 이미지 자동 분석 모듈 ---
+async function processImages(fileInputId, statusId, listId, playerKey) {
+    const files = document.getElementById(fileInputId).files;
+    if (files.length === 0) return;
 
     const statusEl = document.getElementById(statusId);
-    statusEl.innerText = "⏳ 스캔 준비 중...";
+    statusEl.innerText = `⏳ 총 ${files.length}장의 이미지 스캔 중...`;
     statusEl.style.color = "#f9a826";
 
+    // 데이터 초기화 (다시 올릴 경우를 대비)
+    parsedData[playerKey].stats = {};
+    let maxDmg = 0;
+    let maxHp = 0;
+
     try {
-        const imageUrl = URL.createObjectURL(file);
+        // 여러 장의 이미지를 순회하며 스캔
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const imageUrl = URL.createObjectURL(file);
 
-        const { data: { text } } = await Tesseract.recognize(imageUrl, 'kor+eng', {
-            logger: m => {
-                if (m.status === 'recognizing text') {
-                    statusEl.innerText = `🔍 이미지 분석 중... ${Math.round(m.progress * 100)}%`;
-                } else if (m.status.includes('downloading')) {
-                    statusEl.innerText = `📥 한국어 데이터 다운로드 중... (최초 1회만)`;
-                } else {
-                    statusEl.innerText = `⏳ AI 엔진 로딩 중...`;
+            const { data: { text } } = await Tesseract.recognize(imageUrl, 'kor+eng', {
+                logger: m => {
+                    if (m.status === 'recognizing text') {
+                        statusEl.innerText = `🔍 [${i + 1}/${files.length}] 이미지 분석 중... ${Math.round(m.progress * 100)}%`;
+                    }
                 }
-            }
-        });
-        
-        // --- [핵심 개선] 스탯 추출 로직 고도화 ---
-        let cleanText = text.replace(/,/g, ''); // 인식 오류를 막기 위해 콤마(,) 제거
-        let power = 1;
-        let hp = 1;
+            });
+            
+            // 1. 기본 스탯 추출 (띄어쓰기 오류 방지를 위해 모든 공백 제거 후 탐색)
+            const noSpaceText = text.replace(/\s+/g, '').replace(/,/g, '');
+            
+            // 총피해 (1.29b총피해 또는 총피해1.29b 모두 인식)
+            let m1 = noSpaceText.match(/([\d\.]+)([mbMB])총피해/i);
+            let m2 = noSpaceText.match(/총피해([\d\.]+)([mbMB])/i);
+            let dmgVal = 0;
+            if (m1) { dmgVal = parseFloat(m1[1]); if(m1[2].toLowerCase() === 'm') dmgVal /= 1000; }
+            else if (m2) { dmgVal = parseFloat(m2[1]); if(m2[2].toLowerCase() === 'm') dmgVal /= 1000; }
+            if (dmgVal > maxDmg) maxDmg = dmgVal;
 
-        // 1. 총 체력 추출 (단위 m, b 자동 변환)
-        const hpMatch = cleanText.match(/([\d\.]+)\s*([mbMB]?)\s*총\s*체력/);
-        if (hpMatch) {
-            hp = parseFloat(hpMatch[1]);
-            if (hpMatch[2].toLowerCase() === 'm') hp /= 1000; // m단위면 b단위(1/1000)로 환산
-            cleanText = cleanText.replace(hpMatch[0], ''); // 다음 검색을 위해 지워둠
-        }
+            // 총체력
+            let m3 = noSpaceText.match(/([\d\.]+)([mbMB])총체력/i);
+            let m4 = noSpaceText.match(/총체력([\d\.]+)([mbMB])/i);
+            let hpVal = 0;
+            if (m3) { hpVal = parseFloat(m3[1]); if(m3[2].toLowerCase() === 'm') hpVal /= 1000; }
+            else if (m4) { hpVal = parseFloat(m4[1]); if(m4[2].toLowerCase() === 'm') hpVal /= 1000; }
+            if (hpVal > maxHp) maxHp = hpVal;
 
-        // 2. 총 피해 추출 (지워두기 용도)
-        const dmgMatch = cleanText.match(/([\d\.]+)\s*([mbMB]?)\s*총\s*피해/);
-        if (dmgMatch) {
-            cleanText = cleanText.replace(dmgMatch[0], '');
-        }
+            // 2. 세부 옵션 추출 (띄어쓰기 포함 원본 텍스트 사용)
+            const lines = text.split('\n');
+            lines.forEach(line => {
+                const match = line.match(/(?:\+|-)?\s*([\d\.]+)\s*%\s*([가-힣a-zA-Z\s]+)/);
+                if (match) {
+                    const value = parseFloat(match[1]);
+                    const name = match[2].trim();
+                    // 여러 장에서 중복 인식되더라도 덮어쓰므로 문제없음
+                    parsedData[playerKey].stats[name] = value; 
+                }
+            });
+        } // for loop 종료
 
-        // 3. 전투력 추출 (남아있는 텍스트 중 b나 m이 붙은 가장 큰 숫자를 전투력으로 간주)
-        const cpMatch = cleanText.match(/([\d\.]+)\s*([mbMB])/);
-        if (cpMatch) {
-            power = parseFloat(cpMatch[1]);
-            if (cpMatch[2].toLowerCase() === 'm') power /= 1000;
-        }
+        // 찾지 못했을 경우 기본값 1 부여 (계산 오류 방지)
+        parsedData[playerKey].dmg = maxDmg || 1;
+        parsedData[playerKey].hp = maxHp || 1;
 
-        parsedData[playerKey].power = power;
-        parsedData[playerKey].hp = hp;
-        // ----------------------------------------
+        // UI 업데이트
+        renderOptionList(parsedData[playerKey].stats, listId);
 
-        // 4. 만능 옵션 스캐너 (텍스트 전체에서 % 옵션 수치만 긁어모음)
-        const extractedStats = {};
-        const lines = text.split('\n');
-        
-        lines.forEach(line => {
-            const match = line.match(/(?:\+|-)?\s*([\d\.]+)\s*%\s*([가-힣a-zA-Z\s]+)/);
-            if (match) {
-                const value = parseFloat(match[1]);
-                const name = match[2].trim();
-                extractedStats[name] = value;
-            }
-        });
+        const displayDmg = parsedData[playerKey].dmg === 1 ? "?" : parsedData[playerKey].dmg.toFixed(3);
+        const displayHp = parsedData[playerKey].hp === 1 ? "?" : parsedData[playerKey].hp.toFixed(2);
 
-        parsedData[playerKey].stats = extractedStats;
-
-        // 5. UI 업데이트
-        renderOptionList(extractedStats, listId);
-
-        // 표시용 포맷팅 (소수점 2자리)
-        const displayPower = power === 1 ? "?" : power.toFixed(2);
-        const displayHp = hp === 1 ? "?" : hp.toFixed(2);
-
-        statusEl.innerText = `✅ 스캔 완료! (전투력: ${displayPower}B / 체력: ${displayHp}B)`;
+        statusEl.innerText = `✅ 스캔 완료! (총 피해: ${displayDmg}B / 총 체력: ${displayHp}B)`;
         statusEl.style.color = "#4ade80";
 
         if (playerKey === 'my') isMyDataReady = true;
@@ -97,10 +90,11 @@ async function processImage(fileInputId, statusId, listId, playerKey) {
         statusEl.style.color = "#ff4b4b";
     }
 }
+
 // 추출한 옵션을 심플한 목록으로 그려주는 함수
 function renderOptionList(stats, containerId) {
     const container = document.getElementById(containerId);
-    container.innerHTML = ""; // 기존 내용 비우기
+    container.innerHTML = ""; 
 
     const keys = Object.keys(stats);
     if (keys.length === 0) {
@@ -112,13 +106,12 @@ function renderOptionList(stats, containerId) {
         const value = stats[optionName];
         const prefix = optionName.includes("대기시간") ? "-" : "+";
         
-        const html = `
+        container.innerHTML += `
             <div class="simple-option-item">
                 <span class="opt-name">${optionName}</span>
                 <span class="opt-value">${prefix}${value}%</span>
             </div>
         `;
-        container.innerHTML += html;
     });
 }
 
@@ -131,15 +124,16 @@ function checkReadyState() {
     }
 }
 
-// 업로드 이벤트 리스너 연결
-document.getElementById('myImage').addEventListener('change', () => processImage('myImage', 'myStatus', 'myOptionList', 'my'));
-document.getElementById('enemyImage').addEventListener('change', () => processImage('enemyImage', 'enemyStatus', 'enemyOptionList', 'enemy'));
+// 이벤트 리스너 (processImages로 변경)
+document.getElementById('myImage').addEventListener('change', () => processImages('myImage', 'myStatus', 'myOptionList', 'my'));
+document.getElementById('enemyImage').addEventListener('change', () => processImages('enemyImage', 'enemyStatus', 'enemyOptionList', 'enemy'));
 
 
 // --- [2] 정밀 승률 예측 엔진 ---
 document.getElementById('calcBtn').addEventListener('click', () => {
-    const myBase = parsedData.my.power * parsedData.my.hp;
-    const enemyBase = parsedData.enemy.power * parsedData.enemy.hp;
+    // 기초 점수 = 총 피해 * 총 체력
+    const myBase = parsedData.my.dmg * parsedData.my.hp;
+    const enemyBase = parsedData.enemy.dmg * parsedData.enemy.hp;
 
     const getStat = (statsObj, keyword) => {
         const foundKey = Object.keys(statsObj).find(k => k.includes(keyword));
