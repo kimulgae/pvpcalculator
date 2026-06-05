@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PVP 승률 예측 분석기 PRO</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>⚔️ PVP 승률 예측기 <span class="badge">PRO</span></h1>
+        <p class="subtitle">스탯, 스킬, 스킨 모션(Windup)까지 모두 계산하는 최고급 시뮬레이터입니다.</p>
+        
+        <div class="upload-section">
+            <div class="player-card">
+                <h2>나의 세팅</h2>
+                <input type="file" id="myImage" accept="image/*">
+                <p class="status" id="myStatus">대기 중...</p>
+                
+                <div class="stats-box">
+                    <p>전투력: <input type="number" id="myCP" value="0"> B</p>
+                    <p>총 피해: <input type="number" id="myDmg" value="0"> M</p>
+                    <p>총 체력: <input type="number" id="myHp" value="0"> B</p>
+                    <p>공격 속도: <input type="number" id="myAtkSpd" value="0"> %</p>
+                    <p>치명타 확률: <input type="number" id="myCritRate" value="0"> %</p>
+                </div>
+                
+                <div class="skill-box">
+                    <h3>스킨 (와인드업 모션)</h3>
+                    <select id="mySkin">
+                        <option value="S_PLUS">S+ 티어 (0.3s) - 잎사귀 등</option>
+                        <option value="A_PLUS">A+ 티어 (0.48s)</option>
+                        <option value="B">B 티어 (0.68s)</option>
+                        <option value="F">F 티어 (1.10s) - 무거운 도끼 등</option>
+                    </select>
+
+                    <h3 style="margin-top: 15px;">주요 스킬</h3>
+                    <select class="my-skill"><option value="None">선택 안함</option><option value="Lightning">번개 (Lightning)</option><option value="Stampede">쇄도 (Stampede)</option><option value="Drone">드론 (Drone)</option></select>
+                    <select class="my-skill"><option value="None">선택 안함</option><option value="Lightning">번개 (Lightning)</option><option value="Stampede">쇄도 (Stampede)</option><option value="Drone">드론 (Drone)</option></select>
+                </div>
+            </div>
+
+            <div class="player-card">
+                <h2>상대방 세팅</h2>
+                <input type="file" id="enemyImage" accept="image/*">
+                <p class="status" id="enemyStatus">대기 중...</p>
+                
+                <div class="stats-box">
+                    <p>전투력: <input type="number" id="enemyCP" value="0"> B</p>
+                    <p>총 피해: <input type="number" id="enemyDmg" value="0"> M</p>
+                    <p>총 체력: <input type="number" id="enemyHp" value="0"> B</p>
+                    <p>공격 속도: <input type="number" id="enemyAtkSpd" value="0"> %</p>
+                    <p>치명타 확률: <input type="number" id="enemyCritRate" value="0"> %</p>
+                </div>
+
+                <div class="skill-box">
+                    <h3>스킨 (와인드업 모션)</h3>
+                    <select id="enemySkin">
+                        <option value="S_PLUS">S+ 티어 (0.3s) - 잎사귀 등</option>
+                        <option value="A_PLUS">A+ 티어 (0.48s)</option>
+                        <option value="B">B 티어 (0.68s)</option>
+                        <option value="F">F 티어 (1.10s) - 무거운 도끼 등</option>
+                    </select>
+
+                    <h3 style="margin-top: 15px;">주요 스킬</h3>
+                    <select class="enemy-skill"><option value="None">선택 안함</option><option value="Lightning">번개 (Lightning)</option><option value="Stampede">쇄도 (Stampede)</option><option value="Drone">드론 (Drone)</option></select>
+                    <select class="enemy-skill"><option value="None">선택 안함</option><option value="Lightning">번개 (Lightning)</option><option value="Stampede">쇄도 (Stampede)</option><option value="Drone">드론 (Drone)</option></select>
+                </div>
+            </div>
+        </div>
+
+        <button id="calcBtn" class="calc-btn">정밀 시뮬레이션 시작 (60초 타임라인)</button>
+        
+        <div class="result-section">
+            <h2 id="resultText">예상 승률: - %</h2>
+            <div class="progress-bar">
+                <div id="winRateFill" class="progress-fill"></div>
+            </div>
+            <p id="feedbackText" class="feedback">결과를 기다리는 중입니다.</p>
+        </div>
+    </div>
+    
+    <canvas id="hiddenCanvas" style="display: none;"></canvas>
+    
+    <script src="script.js"></script>
+</body>
+</html>
