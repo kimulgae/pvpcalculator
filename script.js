@@ -4,41 +4,48 @@ const parsedData = {
     enemy: { stats: {} }
 };
 
-// --- [핵심 수정] 수식어가 붙은 피해와 순수 피해를 완벽히 구분하는 로직 ---
+// --- [최종 진화] 글자 수 기반의 절대 뚫리지 않는 오타 교정기 ---
 function normalizeStatName(rawName) {
     const str = rawName.replace(/\s+/g, '').toUpperCase(); 
 
-    // 1. 자주 틀리는 오타들을 그룹으로 묶어둡니다.
-    const hasDmg = str.includes("피해") || str.includes("피애") || str.includes("씨애") || str.includes("찌애") || str.includes("파해") || str.includes("피헤");
-    const hasCrit = str.includes("치명") || str.includes("지명") || str.includes("명타") || str.includes("치멍") || str.includes("치명타");
-
-    // 2. 수식어가 있는 옵션들을 먼저 다 걸러냅니다. (계급제 필터링)
+    // 1. 가장 헷갈리기 쉬운 '확률' 계열 먼저 철벽 방어
+    if (str.includes("확률") || str.includes("확럴") || str.includes("확룰")) {
+        if (str.includes("블록") || str.includes("블럭")) return "블록 확률";
+        return "치명타 확률"; // 블록이 아니면 무조건 치명타 확률로 압수
+    }
     
-    // 치명타 계열
-    if ((str.includes("확률") || str.includes("확")) && hasCrit) return "치명타 확률";
-    if (hasCrit) return "치명타 피해"; // '확률'이 아니면 전부 치명타 피해로 간주
-
-    if (str.includes("블록")) return "블록 확률";
+    // 2. 고유 명사들 처리
     if (str.includes("재생")) return "체력 재생";
-    if (str.includes("흡수")) return "생명력 흡수";
-    if (str.includes("더블")) return "더블 찬스";
-    
-    // 피해 계열 중 수식어가 붙은 것들 먼저 처리
-    if (hasDmg && str.includes("근접")) return "근접 피해";
-    if (hasDmg && str.includes("원거리")) return "원거리 피해";
-    if (hasDmg && (str.includes("스킬") || str.includes("스길"))) return "스킬 피해";
-    
-    // 기타 옵션
-    if (str.includes("속도")) return "공격 속도";
+    if (str.includes("흡수") || str.includes("흡슈")) return "생명력 흡수";
+    if (str.includes("더블") || str.includes("떠블")) return "더블 찬스";
+    if (str.includes("속도") || str.includes("속토")) return "공격 속도";
     if (str.includes("대기") || str.includes("재사용")) return "스킬 재사용 대기시간";
     
-    // 3. 위에서 치명타, 근접, 원거리, 스킬을 싹 다 걸러내고 남은 것 중 '피해'가 있으면?
-    // 이건 진짜 100% 순수 '피해' 옵션입니다!
+    // 3. 골칫덩어리 '피해' 계열 완벽 분류 (글자 수 기반 추론)
+    const hasDmg = str.includes("피해") || str.includes("피애") || str.includes("씨애") || str.includes("찌애") || str.includes("파해") || str.includes("피헤");
+    
     if (hasDmg) {
+        // 수식어가 명확한 녀석들 먼저 컷
+        if (str.includes("근접") || str.includes("건접")) return "근접 피해";
+        if (str.includes("원거리") || str.includes("원거")) return "원거리 피해";
+        if (str.includes("스킬") || str.includes("스길")) return "스킬 피해";
+        
+        // [핵심] 근접/원거리/스킬이 아닌데 글자 수가 4글자 이상이다? (ex: 지멍타피해, 쟈명타피애)
+        // 무조건 치명타 피해로 강제 통합!
+        if (str.length >= 4) {
+            return "치명타 피해"; 
+        }
+        
+        // 글자 수가 2~3글자(ex: 피해, 피애)로 짧으면 그제서야 순수 피해로 인정!
         return "피해";
     }
+    
+    // 혹시라도 '피해' 글자가 아예 날아갔을 경우 ('치명타'만 남음)
+    if (str.includes("치명") || str.includes("지명") || str.includes("명타")) {
+         return "치명타 피해"; // 확률은 이미 1번에서 걸러졌으므로 100% 피해
+    }
 
-    return null; // 공식 옵션 사전에 없으면 완벽하게 무시
+    return null; // 이상한 외계어는 쓰레기통으로
 }
 // --- [1] 세부 옵션 전용 초고속 스캐너 ---
 async function processImages(fileInputId, statusId, listId, playerKey) {
