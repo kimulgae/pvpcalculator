@@ -38,3 +38,17 @@ input[type="file"] { margin-bottom: 15px; width: 100%; font-size: 13px; color: #
 .progress-bar { width: 100%; height: 24px; background: #161622; border-radius: 12px; overflow: hidden; margin: 20px 0; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5); }
 .progress-fill { width: 50%; height: 100%; background: linear-gradient(90deg, #4ade80, #ff4b4b); transition: width 1s cubic-bezier(0.4, 0, 0.2, 1); }
 .feedback { color: #d0d0e0; font-size: 16px; line-height: 1.6; }
+/* 자동 감지된 스킬 표시창 스타일 */
+.skill-display { 
+    background: rgba(249, 168, 38, 0.1); 
+    color: #d0d0e0; 
+    padding: 12px 15px; 
+    border-radius: 8px; 
+    margin-bottom: 12px; 
+    font-size: 15px; 
+    font-weight: 700; 
+    border: 1px solid rgba(249, 168, 38, 0.3); 
+    text-align: center;
+}
+.skill-display .found-skill { color: #f9a826; font-size: 16px; }
+.skill-display .empty-skill { color: #8e8e9f; font-weight: 500; }
