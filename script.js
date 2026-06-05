@@ -35,18 +35,16 @@ async function processImages(fileInputId, statusId, listId, playerKey) {
                 }
             });
             
-            // --- [핵심 개선] AI의 'b->6' 오독 교정 및 한글 오타 허용 로직 ---
-            
-            // 1. 총 피해 추출 (총, 종, 층 / 해, 히 등 오타 허용)
-            const dmgMatch = text.match(/([\d\.,]+)\s*([a-zA-Z6]?)\s*[총종층]\s*피\s*[해히]/i);
+            // 1. 총 피해 추출 ('총' 글자가 날아가거나 띄어쓰기가 엉망이어도 최대 8글자 내에서 탐색)
+            const dmgMatch = text.match(/([\d\.,]+)\s*([a-zA-Z6]?)\s*[\s\S]{0,8}피\s*[해히]/i);
             if (dmgMatch) {
                 let numStr = dmgMatch[1].replace(/,/g, '');
                 let unit = dmgMatch[2].toLowerCase();
 
-                // AI가 소문자 b를 숫자 6으로 오독하여 숫자에 붙여버린 경우 (예: 1.29b -> 1.296)
+                // 'b'를 '6'으로 오독한 경우 자동 교정
                 if (unit === '' && numStr.endsWith('6')) {
-                    numStr = numStr.slice(0, -1); // 맨 끝의 6을 잘라냄
-                    unit = 'b';                   // 단위를 b로 강제 지정
+                    numStr = numStr.slice(0, -1);
+                    unit = 'b';
                 } else if (unit === '6') {
                     unit = 'b';
                 }
@@ -56,13 +54,12 @@ async function processImages(fileInputId, statusId, listId, playerKey) {
                 if (val > maxDmg) maxDmg = val;
             }
 
-            // 2. 총 체력 추출 (체, 채, 제 / 력, 럭, 릭 등 오타 허용)
-            const hpMatch = text.match(/([\d\.,]+)\s*([a-zA-Z6]?)\s*[총종층]\s*[체채제]\s*[력럭릭]/i);
+            // 2. 총 체력 추출 (마찬가지로 숫자와 '체력' 사이의 온갖 오타와 줄바꿈 무시)
+            const hpMatch = text.match(/([\d\.,]+)\s*([a-zA-Z6]?)\s*[\s\S]{0,8}[체채제]\s*[력럭릭]/i);
             if (hpMatch) {
                 let numStr = hpMatch[1].replace(/,/g, '');
                 let unit = hpMatch[2].toLowerCase();
 
-                // b를 6으로 오독한 경우 교정
                 if (unit === '' && numStr.endsWith('6')) {
                     numStr = numStr.slice(0, -1);
                     unit = 'b';
@@ -74,7 +71,6 @@ async function processImages(fileInputId, statusId, listId, playerKey) {
                 if (unit === 'm') val /= 1000;
                 if (val > maxHp) maxHp = val;
             }
-            // -----------------------------------------------------------
 
             // 3. 세부 옵션 추출 (+ 수치 % 형태)
             const lines = text.split('\n');
@@ -112,7 +108,6 @@ async function processImages(fileInputId, statusId, listId, playerKey) {
         statusEl.style.color = "#ff4b4b";
     }
 }
-
 // 추출한 옵션을 심플한 목록으로 그려주는 함수
 function renderOptionList(stats, containerId) {
     const container = document.getElementById(containerId);
