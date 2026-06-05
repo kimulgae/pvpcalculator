@@ -1,7 +1,8 @@
+// 양쪽 데이터가 모두 준비되었는지 확인하는 플래그
 let isMyDataReady = false;
 let isEnemyDataReady = false;
 
-// 파싱된 데이터를 저장할 메인 객체 (전투력 대신 dmg와 hp로 명확히 분리)
+// 파싱된 데이터를 저장할 메인 객체
 const parsedData = {
     my: { dmg: 0, hp: 0, stats: {} },
     enemy: { dmg: 0, hp: 0, stats: {} }
@@ -34,24 +35,48 @@ async function processImages(fileInputId, statusId, listId, playerKey) {
                 }
             });
             
-            // 1. 총 피해와 총 체력 정밀 추출 (숫자 뭉침 오류 완벽 수정)
-            // 공백을 억지로 지우지 않고, 숫자와 '총 피해' 사이의 띄어쓰기를 유연하게 허용
-            const dmgMatch = text.match(/([\d\.,]+)\s*([a-zA-Z]?)\s*총\s*피\s*해/i);
+            // --- [핵심 개선] AI의 'b->6' 오독 교정 및 한글 오타 허용 로직 ---
+            
+            // 1. 총 피해 추출 (총, 종, 층 / 해, 히 등 오타 허용)
+            const dmgMatch = text.match(/([\d\.,]+)\s*([a-zA-Z6]?)\s*[총종층]\s*피\s*[해히]/i);
             if (dmgMatch) {
-                let val = parseFloat(dmgMatch[1].replace(/,/g, ''));
-                if (dmgMatch[2].toLowerCase() === 'm') val /= 1000; // m단위면 B단위로 환산
+                let numStr = dmgMatch[1].replace(/,/g, '');
+                let unit = dmgMatch[2].toLowerCase();
+
+                // AI가 소문자 b를 숫자 6으로 오독하여 숫자에 붙여버린 경우 (예: 1.29b -> 1.296)
+                if (unit === '' && numStr.endsWith('6')) {
+                    numStr = numStr.slice(0, -1); // 맨 끝의 6을 잘라냄
+                    unit = 'b';                   // 단위를 b로 강제 지정
+                } else if (unit === '6') {
+                    unit = 'b';
+                }
+
+                let val = parseFloat(numStr);
+                if (unit === 'm') val /= 1000;
                 if (val > maxDmg) maxDmg = val;
             }
 
-            // OCR이 '체력'을 '채력'으로 오타 낼 경우까지 대비
-            const hpMatch = text.match(/([\d\.,]+)\s*([a-zA-Z]?)\s*총\s*[체채]\s*력/i);
+            // 2. 총 체력 추출 (체, 채, 제 / 력, 럭, 릭 등 오타 허용)
+            const hpMatch = text.match(/([\d\.,]+)\s*([a-zA-Z6]?)\s*[총종층]\s*[체채제]\s*[력럭릭]/i);
             if (hpMatch) {
-                let val = parseFloat(hpMatch[1].replace(/,/g, ''));
-                if (hpMatch[2].toLowerCase() === 'm') val /= 1000;
+                let numStr = hpMatch[1].replace(/,/g, '');
+                let unit = hpMatch[2].toLowerCase();
+
+                // b를 6으로 오독한 경우 교정
+                if (unit === '' && numStr.endsWith('6')) {
+                    numStr = numStr.slice(0, -1);
+                    unit = 'b';
+                } else if (unit === '6') {
+                    unit = 'b';
+                }
+
+                let val = parseFloat(numStr);
+                if (unit === 'm') val /= 1000;
                 if (val > maxHp) maxHp = val;
             }
+            // -----------------------------------------------------------
 
-            // 2. 세부 옵션 추출 (+ 수치 % 형태)
+            // 3. 세부 옵션 추출 (+ 수치 % 형태)
             const lines = text.split('\n');
             lines.forEach(line => {
                 const match = line.match(/(?:\+|-)?\s*([\d\.,]+)\s*%\s*([가-힣a-zA-Z\s]+)/);
@@ -63,7 +88,7 @@ async function processImages(fileInputId, statusId, listId, playerKey) {
             });
         }
 
-        // 못 찾았을 경우 기본값 1 부여 (계산기 고장 방지)
+        // 혹시라도 못 찾았을 경우 계산기 고장 방지를 위해 1 부여
         parsedData[playerKey].dmg = maxDmg || 1;
         parsedData[playerKey].hp = maxHp || 1;
 
@@ -121,7 +146,7 @@ function checkReadyState() {
     }
 }
 
-// 이벤트 리스너 (processImages로 변경)
+// 다중 파일 업로드 이벤트 연결
 document.getElementById('myImage').addEventListener('change', () => processImages('myImage', 'myStatus', 'myOptionList', 'my'));
 document.getElementById('enemyImage').addEventListener('change', () => processImages('enemyImage', 'enemyStatus', 'enemyOptionList', 'enemy'));
 
