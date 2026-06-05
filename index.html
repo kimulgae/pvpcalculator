@@ -5,30 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PVP 승률 예측기 PRO</title>
     <link rel="stylesheet" href="style.css">
-    <!-- OCR 자동 인식을 위한 Tesseract.js -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 <body>
     <div class="container">
         <h1>⚔️ PVP 승률 예측기 <span class="badge">PRO</span></h1>
-        <p class="subtitle">스크린샷을 업로드하면 자동으로 옵션을 스캔하고 승률을 예측합니다.</p>
+        <p class="subtitle">옵션이 많다면 스크린샷을 여러 장 선택해서 한 번에 올리세요!</p>
         
         <div class="upload-section">
-            <!-- 내 정보 업로드 -->
             <div class="player-card">
                 <h2>나의 세팅 분석</h2>
-                <input type="file" id="myImage" accept="image/*">
-                <p class="status" id="myStatus">스탯 창 스크린샷을 업로드해주세요.</p>
-                <!-- 자동 스캔된 옵션 리스트가 출력될 공간 -->
+                <input type="file" id="myImage" accept="image/*" multiple>
+                <p class="status" id="myStatus">스탯 창 스크린샷을 업로드해주세요. (다중 선택 가능)</p>
                 <div id="myOptionList" class="option-list"></div>
             </div>
 
-            <!-- 상대방 정보 업로드 -->
             <div class="player-card">
                 <h2>상대방 세팅 분석</h2>
-                <input type="file" id="enemyImage" accept="image/*">
-                <p class="status" id="enemyStatus">스탯 창 스크린샷을 업로드해주세요.</p>
-                <!-- 자동 스캔된 옵션 리스트가 출력될 공간 -->
+                <input type="file" id="enemyImage" accept="image/*" multiple>
+                <p class="status" id="enemyStatus">스탯 창 스크린샷을 업로드해주세요. (다중 선택 가능)</p>
                 <div id="enemyOptionList" class="option-list"></div>
             </div>
         </div>
