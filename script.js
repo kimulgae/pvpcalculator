@@ -71,14 +71,14 @@ function normalizeStatName(rawName) {
     if (rawName.includes("스킬") || rawName.includes("스길")) return "스킬 피해";
     
     if (rawName.includes("재생") || rawName.includes("제생")) return "체력 재생";
-    if (rawName.includes("체력") || rawName.includes("채력") || rawName.includes("최력")) return "체력";
+    if (rawName.includes("체력") || rawName.includes("채력") || rawName.includes("최력") || rawName.includes("체럭")) return "체력";
     
     if (rawName.includes("피해") || rawName.includes("피애") || rawName.includes("파해") || rawName.includes("피헤")) return "피해";
     
     return null;
 }
 
-// [가장 안정적인 스캔 로직] 기호가 안 보여도 숫자와 옵션명만 쏙쏙 뺍니다!
+// [쓰레기 기호 완전 분쇄 엔진] 
 async function processImages(fileInputId, statusId, listId, playerKey) {
     const files = document.getElementById(fileInputId).files;
     if (files.length === 0) return;
@@ -95,24 +95,28 @@ async function processImages(fileInputId, statusId, listId, playerKey) {
             const { data: { text } } = await Tesseract.recognize(imgUrl, 'kor+eng');
             URL.revokeObjectURL(imgUrl); 
 
+            // 1. 모든 띄어쓰기를 완전히 파괴합니다.
             const cleanText = text.replace(/\s+/g, '');
             
-            // 🎯 스크립트 정지의 원인이었던 문법 오류를 완벽하게 고친 정규식!
-            const regex = /([+*t-]?)(\d+[\.,]?\d*)[%]?([가-힣]+)/g;
+            // 🎯 끝판왕 정규식: (부호)(숫자) [가운데 쓰레기 기호들 무시] (한글옵션)
+            // 숫자와 한글 사이에 AI가 만들어낸 *, ', _ 같은 특수문자를 전부 무시하고 뚫고 지나갑니다!
+            const regex = /([+-]?)(\d+[\.,]?\d*)[^a-zA-Z가-힣0-9]*([a-zA-Z가-힣]+)/g;
             let match;
             
             while ((match = regex.exec(cleanText)) !== null) {
-                const sign = match[1];
-                const numStr = match[2].replace(',', '.');
+                const sign = match[1]; // + 또는 -
+                const numStr = match[2].replace(',', '.'); // 숫자의 쉼표를 마침표로
                 let value = parseFloat(numStr);
                 
                 if (sign === '-') value = -value;
                 
+                // 쓰레기 숫자 데이터 차단 (정상 수치 30000 이하만 통과)
                 if (Math.abs(value) > 30000) continue;
 
-                const rawName = match[3];
+                const rawName = match[3]; // 한글 옵션명 추출
                 const statName = normalizeStatName(rawName);
                 
+                // 유효한 옵션명이라면 저장!
                 if (statName) {
                     parsedData[playerKey].stats[statName] = value;
                 }
