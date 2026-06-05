@@ -1,35 +1,38 @@
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
 
 * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Pretendard', sans-serif; }
-body { background-color: #12121c; color: #ffffff; display: flex; justify-content: center; padding: 20px 10px; }
-.container { max-width: 900px; width: 100%; text-align: center; }
+body { background-color: #12121c; color: #ffffff; display: flex; justify-content: center; padding: 40px 15px; overflow-x: hidden; }
+.container { max-width: 1000px; width: 100%; text-align: center; }
+
 h1 { color: #f9a826; font-size: 32px; margin-bottom: 8px; }
 .subtitle { color: #8e8e9f; margin-bottom: 30px; font-size: 15px; word-break: keep-all; }
 
-.upload-section { display: flex; gap: 20px; margin-bottom: 30px; flex-wrap: wrap; }
-/* 모바일에서 카드가 꽉 차도록 min-width: 100% 로 수정 */
-.player-card { background: #1e1e2e; padding: 25px; border-radius: 16px; flex: 1; border: 1px solid #2a2a40; min-width: 100%; text-align: left; }
+/* 💻 PC 레이아웃: 카드가 양옆으로 예쁘게 배치됨 */
+.upload-section { display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 30px; width: 100%; align-items: flex-start; }
+.player-card { flex: 1 1 320px; background: #1e1e2e; padding: 25px; border-radius: 16px; border: 1px solid #2a2a40; text-align: left; max-width: 100%; }
+
 .player-card h2 { margin-bottom: 15px; color: #4ade80; font-size: 20px; border-bottom: 1px solid #2a2a40; padding-bottom: 10px; text-align: center; }
 .player-card:nth-child(2) h2 { color: #ff4b4b; }
 
-.manual-input-group { margin-bottom: 15px; }
-.input-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 8px; }
-/* 핵심 수정: 글자가 세로로 찌부러지지 않도록 철벽 방어 */
-.input-row label { color: #d0d0e0; font-size: 14.5px; font-weight: 600; width: 55px; white-space: nowrap; flex-shrink: 0; }
-/* 핵심 수정: 입력창이 화면 밖으로 튀어나가지 않게 min-width 0 설정 */
-.input-row input { flex: 1; background: #161622; color: #fff; border: 1px solid #33334d; padding: 10px; border-radius: 8px; font-size: 15px; outline: none; min-width: 0; }
-.input-row select { background: #2a2a40; color: #4ade80; border: 1px solid #33334d; padding: 10px; border-radius: 8px; font-weight: bold; outline: none; cursor: pointer; flex-shrink: 0; }
+/* 🛡️ 입력창 레이아웃 철벽 방어 (모바일 찌그러짐 원천 차단) */
+.manual-input-group { margin-bottom: 15px; width: 100%; }
+.input-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; width: 100%; }
+/* label 글자가 절대 안 찌그러지게 flex-shrink 금지 */
+.input-row label { flex: 0 0 55px; color: #d0d0e0; font-size: 14px; font-weight: 600; white-space: nowrap; text-align: left; }
+/* input이 폰 화면 밖으로 안 튀어나가게 min-width: 0 설정 */
+.input-row input { flex: 1 1 auto; min-width: 0; background: #161622; color: #fff; border: 1px solid #33334d; padding: 10px; border-radius: 8px; font-size: 14px; outline: none; }
+.input-row select { flex: 0 0 70px; background: #2a2a40; color: #4ade80; border: 1px solid #33334d; padding: 10px 4px; border-radius: 8px; font-weight: bold; outline: none; cursor: pointer; font-size: 14px; text-align: center; }
 
 /* 3개 스킬 & 공통 승천 디자인 */
-.skill-slots-container { margin-bottom: 10px; text-align: left; margin-top: 15px; }
+.skill-slots-container { margin-bottom: 10px; text-align: left; margin-top: 15px; width: 100%; }
 .skill-slots-container label { color: #f9a826; font-size: 14.5px; font-weight: 600; display: block; margin-bottom: 10px; }
-.skill-slots { display: flex; gap: 8px; margin-bottom: 10px; }
-.skill-item { display: flex; flex-direction: column; flex: 1; min-width: 0; }
-.skill-item select { background: #2a2a40; color: #4ade80; border: 1px solid #33334d; padding: 10px 2px; border-radius: 8px; font-weight: bold; outline: none; cursor: pointer; font-size: 13.5px; text-align: center; appearance: none; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
+.skill-slots { display: flex; gap: 8px; margin-bottom: 10px; width: 100%; }
+.skill-item { display: flex; flex-direction: column; flex: 1 1 0; min-width: 0; }
+.skill-item select { width: 100%; background: #2a2a40; color: #4ade80; border: 1px solid #33334d; padding: 10px 2px; border-radius: 8px; font-weight: bold; outline: none; cursor: pointer; font-size: 13px; text-align: center; appearance: none; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
 
-.ascension-slot { display: flex; align-items: center; justify-content: space-between; background: #161622; padding: 10px 15px; border-radius: 8px; border: 1px solid #33334d; gap: 10px; }
+.ascension-slot { display: flex; align-items: center; justify-content: space-between; background: #161622; padding: 10px 15px; border-radius: 8px; border: 1px solid #33334d; gap: 10px; width: 100%; }
 .ascension-slot label { margin-bottom: 0; color: #f9a826; font-size: 14.5px; white-space: nowrap; flex-shrink: 0; }
-.asc-select-full { flex: 1; background: #2a2a40; color: #f9a826; border: 1px solid #33334d; padding: 6px 12px; border-radius: 8px; font-weight: bold; outline: none; cursor: pointer; font-size: 14px; text-align: center; }
+.asc-select-full { flex: 1 1 auto; min-width: 0; background: #2a2a40; color: #f9a826; border: 1px solid #33334d; padding: 8px 12px; border-radius: 8px; font-weight: bold; outline: none; cursor: pointer; font-size: 14px; text-align: center; }
 
 .divider { border: 0; height: 1px; background: #2a2a40; margin: 20px 0; }
 .scan-label { display: block; color: #a0a0b0; font-size: 13px; margin-bottom: 8px; }
@@ -43,30 +46,28 @@ input[type="file"] { margin-bottom: 15px; width: 100%; font-size: 13px; color: #
 .opt-value { color: #4ade80; font-weight: 800; font-size: 15px; }
 
 .calc-btn { background: linear-gradient(135deg, #4ade80, #059669); color: white; border: none; padding: 18px 40px; font-size: 18px; border-radius: 12px; cursor: pointer; font-weight: 800; width: 100%; box-shadow: 0 4px 15px rgba(5, 150, 105, 0.3); margin-bottom: 30px; }
-.result-section { background: #1e1e2e; padding: 30px; border-radius: 16px; border: 1px solid #2a2a40; }
+.result-section { background: #1e1e2e; padding: 30px; border-radius: 16px; border: 1px solid #2a2a40; width: 100%; }
 .progress-bar { width: 100%; height: 24px; background: #161622; border-radius: 12px; overflow: hidden; margin: 20px 0; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5); }
 .progress-fill { width: 50%; height: 100%; background: linear-gradient(90deg, #4ade80, #ff4b4b); transition: width 1s cubic-bezier(0.4, 0, 0.2, 1); }
 .feedback { color: #d0d0e0; font-size: 16px; line-height: 1.6; word-break: keep-all; }
 
-/* 📱 스마트폰 모바일 화면 전용 디자인 (화면 폭 600px 이하일 때 자동 발동) */
-@media (max-width: 600px) {
-    body { padding: 15px 10px; }
-    h1 { font-size: 24px; }
+/* 📱 스마트폰 모바일 화면 전용 디자인 (화면 폭이 좁아지면 카드가 세로로, 글씨는 최적화) */
+@media (max-width: 768px) {
+    body { padding: 20px 10px; }
+    h1 { font-size: 26px; }
     .player-card { padding: 15px; }
     
-    /* 라벨과 입력창 폰트 및 여백 최적화 */
-    .input-row label { font-size: 13px; width: 45px; }
+    .input-row label { flex: 0 0 50px; font-size: 13px; }
     .input-row input { font-size: 14px; padding: 8px; }
-    .input-row select { font-size: 13px; padding: 8px; }
+    .input-row select { flex: 0 0 60px; font-size: 13px; padding: 8px 2px; }
     
-    /* 스킬 슬롯이 좁은 화면에서도 3개가 잘 들어가도록 조절 */
     .skill-slots { gap: 5px; }
     .skill-item select { padding: 8px 0; font-size: 12px; }
     
-    /* 승천 슬롯은 모바일에서 위아래로 깔끔하게 배치 */
-    .ascension-slot { padding: 10px; flex-direction: column; align-items: flex-start; gap: 8px; }
-    .asc-select-full { width: 100%; padding: 8px; }
+    .ascension-slot { flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px; }
+    .asc-select-full { width: 100%; padding: 10px; font-size: 14px; }
     
     .calc-btn { font-size: 16px; padding: 15px 20px; }
     .result-section { padding: 20px 15px; }
+    .simple-option-item { font-size: 13.5px; padding: 8px 12px; }
 }
