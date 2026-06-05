@@ -10,7 +10,7 @@
 <body>
     <div class="container">
         <h1>⚔️ PVP 승률 예측기</h1>
-        <p class="subtitle">기본 스탯을 입력하고, 장착 중인 스킬 3개(승천 포함)를 선택한 뒤 옵션을 스캔하세요!</p>
+        <p class="subtitle">기본 스탯을 입력하고, 스킬과 승천 단계를 세팅한 뒤 옵션을 스캔하세요!</p>
         
         <div class="upload-section">
             <div class="player-card">
@@ -43,26 +43,20 @@
                 </div>
 
                 <div class="skill-slots-container">
-                    <label>장착 스킬 (수동 선택) 및 승천 단계</label>
+                    <label>장착 스킬 (수동 선택)</label>
                     <div class="skill-slots">
-                        <div class="skill-item">
-                            <select id="mySkill1"></select>
-                            <select id="mySkill1Asc" class="asc-select">
-                                <option value="0">승천 0</option><option value="1">승천 1</option><option value="2">승천 2</option><option value="3">승천 3</option>
-                            </select>
-                        </div>
-                        <div class="skill-item">
-                            <select id="mySkill2"></select>
-                            <select id="mySkill2Asc" class="asc-select">
-                                <option value="0">승천 0</option><option value="1">승천 1</option><option value="2">승천 2</option><option value="3">승천 3</option>
-                            </select>
-                        </div>
-                        <div class="skill-item">
-                            <select id="mySkill3"></select>
-                            <select id="mySkill3Asc" class="asc-select">
-                                <option value="0">승천 0</option><option value="1">승천 1</option><option value="2">승천 2</option><option value="3">승천 3</option>
-                            </select>
-                        </div>
+                        <div class="skill-item"><select id="mySkill1"></select></div>
+                        <div class="skill-item"><select id="mySkill2"></select></div>
+                        <div class="skill-item"><select id="mySkill3"></select></div>
+                    </div>
+                    <div class="ascension-slot">
+                        <label>🌟 스킬 승천 단계</label>
+                        <select id="myAscension" class="asc-select-full">
+                            <option value="0">승천 0단계</option>
+                            <option value="1">승천 1단계</option>
+                            <option value="2">승천 2단계</option>
+                            <option value="3">승천 3단계</option>
+                        </select>
                     </div>
                 </div>
 
@@ -103,26 +97,20 @@
                 </div>
 
                 <div class="skill-slots-container">
-                    <label>장착 스킬 (수동 선택) 및 승천 단계</label>
+                    <label>장착 스킬 (수동 선택)</label>
                     <div class="skill-slots">
-                        <div class="skill-item">
-                            <select id="enemySkill1"></select>
-                            <select id="enemySkill1Asc" class="asc-select">
-                                <option value="0">승천 0</option><option value="1">승천 1</option><option value="2">승천 2</option><option value="3">승천 3</option>
-                            </select>
-                        </div>
-                        <div class="skill-item">
-                            <select id="enemySkill2"></select>
-                            <select id="enemySkill2Asc" class="asc-select">
-                                <option value="0">승천 0</option><option value="1">승천 1</option><option value="2">승천 2</option><option value="3">승천 3</option>
-                            </select>
-                        </div>
-                        <div class="skill-item">
-                            <select id="enemySkill3"></select>
-                            <select id="enemySkill3Asc" class="asc-select">
-                                <option value="0">승천 0</option><option value="1">승천 1</option><option value="2">승천 2</option><option value="3">승천 3</option>
-                            </select>
-                        </div>
+                        <div class="skill-item"><select id="enemySkill1"></select></div>
+                        <div class="skill-item"><select id="enemySkill2"></select></div>
+                        <div class="skill-item"><select id="enemySkill3"></select></div>
+                    </div>
+                    <div class="ascension-slot">
+                        <label>🌟 스킬 승천 단계</label>
+                        <select id="enemyAscension" class="asc-select-full">
+                            <option value="0">승천 0단계</option>
+                            <option value="1">승천 1단계</option>
+                            <option value="2">승천 2단계</option>
+                            <option value="3">승천 3단계</option>
+                        </select>
                     </div>
                 </div>
 
