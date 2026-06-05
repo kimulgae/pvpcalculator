@@ -91,15 +91,14 @@ async function processImages(fileInputId, statusId, listId, playerKey) {
         for (let i = 0; i < files.length; i++) {
             statusEl.innerText = `⏳ ${i + 1}/${files.length}번째 이미지 딥러닝 분석 중...`;
             
-            // 모바일 튕김 방지용 가장 안전한 URL 로딩 방식
             const imgUrl = URL.createObjectURL(files[i]);
             const { data: { text } } = await Tesseract.recognize(imgUrl, 'kor+eng');
             URL.revokeObjectURL(imgUrl); 
 
             const cleanText = text.replace(/\s+/g, '');
             
-            // 🎯 핵심 해결책: JPG 뭉개짐 때문에 +가 안 보여도 매칭되도록 [+-]? 로 변경 (t나 *로 오작동하는 것도 포용)
-            const regex = /([+-\*t]?)(\d+[\.,]?\d*)[%]?([가-힣]+)/g;
+            // 🎯 스크립트 정지의 원인이었던 문법 오류를 완벽하게 고친 정규식!
+            const regex = /([+*t-]?)(\d+[\.,]?\d*)[%]?([가-힣]+)/g;
             let match;
             
             while ((match = regex.exec(cleanText)) !== null) {
@@ -109,7 +108,6 @@ async function processImages(fileInputId, statusId, listId, playerKey) {
                 
                 if (sign === '-') value = -value;
                 
-                // OCR 오작동 쓰레기 데이터 컷 (게임 내 정상적인 % 수치만 허용)
                 if (Math.abs(value) > 30000) continue;
 
                 const rawName = match[3];
