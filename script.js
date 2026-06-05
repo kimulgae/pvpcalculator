@@ -8,17 +8,31 @@ const parsedData = {
     enemy: { power: 0, hp: 0, stats: {} }
 };
 
-// --- [1] 이미지 자동 분석 모듈 ---
+// --- [1] 이미지 자동 분석 모듈 (실시간 진행상황 추가) ---
 async function processImage(fileInputId, statusId, listId, playerKey) {
     const file = document.getElementById(fileInputId).files[0];
     if (!file) return;
 
     const statusEl = document.getElementById(statusId);
-    statusEl.innerText = "🔍 이미지 스캔 중... (잠시만 기다려주세요)";
+    statusEl.innerText = "⏳ 스캔 준비 중...";
     statusEl.style.color = "#f9a826";
 
     try {
-        const { data: { text } } = await Tesseract.recognize(file, 'kor+eng');
+        // 안전하게 파일 URL 생성
+        const imageUrl = URL.createObjectURL(file);
+
+        // 진행 상황을 화면에 실시간으로 표시
+        const { data: { text } } = await Tesseract.recognize(imageUrl, 'kor+eng', {
+            logger: m => {
+                if (m.status === 'recognizing text') {
+                    statusEl.innerText = `🔍 이미지 분석 중... ${Math.round(m.progress * 100)}%`;
+                } else if (m.status.includes('downloading')) {
+                    statusEl.innerText = `📥 한국어 데이터 다운로드 중... (최초 1회만)`;
+                } else {
+                    statusEl.innerText = `⏳ AI 엔진 로딩 중...`;
+                }
+            }
+        });
         
         // 1. 기본 전투력(B) / 체력(B) 추출
         const cpMatch = text.match(/(?:전투력|대장간|기본).*?([\d\.]+)\s*[bB]/i) || text.match(/([\d\.]+)\s*[bB]/);
@@ -32,12 +46,10 @@ async function processImage(fileInputId, statusId, listId, playerKey) {
         const lines = text.split('\n');
         
         lines.forEach(line => {
-            // 정규식 설명: (+ 또는 - 기호 가능) (숫자.숫자) (%) (한글/영문 텍스트)
             const match = line.match(/(?:\+|-)?\s*([\d\.]+)\s*%\s*([가-힣a-zA-Z\s]+)/);
             if (match) {
                 const value = parseFloat(match[1]);
-                const name = match[2].trim(); // 예: "치명타 확률"
-                // 쿨감 같이 마이너스가 붙을 수 있는 경우를 위해 숫자만 저장 (나중에 계산에서 절댓값 처리)
+                const name = match[2].trim();
                 extractedStats[name] = value;
             }
         });
@@ -58,7 +70,8 @@ async function processImage(fileInputId, statusId, listId, playerKey) {
 
     } catch (error) {
         console.error(error);
-        statusEl.innerText = "❌ 이미지 인식 실패. 글자가 선명한 사진을 올려주세요.";
+        // 에러 내용을 화면에 직접 출력하여 디버깅 용이하게 함
+        statusEl.innerText = `❌ 에러 발생: ${error.message || "네트워크나 파일 오류입니다."}`;
         statusEl.style.color = "#ff4b4b";
     }
 }
@@ -76,7 +89,6 @@ function renderOptionList(stats, containerId) {
 
     keys.forEach(optionName => {
         const value = stats[optionName];
-        // 스킬 쿨타임처럼 원래 마이너스인 옵션의 기호 처리
         const prefix = optionName.includes("대기시간") ? "-" : "+";
         
         const html = `
@@ -105,17 +117,14 @@ document.getElementById('enemyImage').addEventListener('change', () => processIm
 
 // --- [2] 정밀 승률 예측 엔진 ---
 document.getElementById('calcBtn').addEventListener('click', () => {
-    // 1. 기초 체급
     const myBase = parsedData.my.power * parsedData.my.hp;
     const enemyBase = parsedData.enemy.power * parsedData.enemy.hp;
 
-    // 2. 키워드를 유연하게 검색하여 수치를 반환하는 함수 (OCR 오타 대응)
     const getStat = (statsObj, keyword) => {
         const foundKey = Object.keys(statsObj).find(k => k.includes(keyword));
         return foundKey ? (statsObj[foundKey] / 100) : 0;
     };
 
-    // 3. 복리(Multiplicative) 옵션 효율 계산
     const calculateEfficiency = (statsObj) => {
         let multi = 1.0;
         
@@ -125,14 +134,14 @@ document.getElementById('calcBtn').addEventListener('click', () => {
         const cd = getStat(statsObj, "치명타 피해");
         const dc = getStat(statsObj, "더블 찬스");
         const skDmg = getStat(statsObj, "스킬 피해");
-        const skCd = getStat(statsObj, "대기시간"); // 쿨타임 대기시간 감소
+        const skCd = getStat(statsObj, "대기시간"); 
         
         multi *= (1 + dmg);
         multi *= (1 + as);
         multi *= (1 + dc);
-        multi *= (1 + (cr * (0.2 + cd))); // 파이썬 시뮬레이터 로직
+        multi *= (1 + (cr * (0.2 + cd)));
         multi *= (1 + skDmg);
-        multi *= (1 + Math.abs(skCd));    // 쿨타임 감소는 효율 증가분으로 적용
+        multi *= (1 + Math.abs(skCd));    
 
         return multi;
     };
@@ -140,14 +149,12 @@ document.getElementById('calcBtn').addEventListener('click', () => {
     const myEfficiency = calculateEfficiency(parsedData.my.stats);
     const enemyEfficiency = calculateEfficiency(parsedData.enemy.stats);
 
-    // 4. 최종 스코어 기반 승률 도출
     const myFinalScore = myBase * myEfficiency;
     const enemyFinalScore = enemyBase * enemyEfficiency;
 
     let winRate = (myFinalScore / (myFinalScore + enemyFinalScore)) * 100;
     winRate = Math.max(1, Math.min(99.9, winRate));
 
-    // 5. 결과 UI 반영
     const winRateFixed = winRate.toFixed(1);
     document.getElementById('resultText').innerText = `내 승리 확률: ${winRateFixed} %`;
     document.getElementById('winRateFill').style.width = `${winRateFixed}%`;
