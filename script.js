@@ -16,13 +16,12 @@ async function processImages(fileInputId, statusId, listId, playerKey) {
     statusEl.innerText = `⏳ 총 ${files.length}장의 이미지 스캔 중...`;
     statusEl.style.color = "#f9a826";
 
-    // 데이터 초기화 (다시 올릴 경우를 대비)
+    // 데이터 초기화
     parsedData[playerKey].stats = {};
     let maxDmg = 0;
     let maxHp = 0;
 
     try {
-        // 여러 장의 이미지를 순회하며 스캔
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
             const imageUrl = URL.createObjectURL(file);
@@ -35,45 +34,43 @@ async function processImages(fileInputId, statusId, listId, playerKey) {
                 }
             });
             
-            // 1. 기본 스탯 추출 (띄어쓰기 오류 방지를 위해 모든 공백 제거 후 탐색)
-            const noSpaceText = text.replace(/\s+/g, '').replace(/,/g, '');
-            
-            // 총피해 (1.29b총피해 또는 총피해1.29b 모두 인식)
-            let m1 = noSpaceText.match(/([\d\.]+)([mbMB])총피해/i);
-            let m2 = noSpaceText.match(/총피해([\d\.]+)([mbMB])/i);
-            let dmgVal = 0;
-            if (m1) { dmgVal = parseFloat(m1[1]); if(m1[2].toLowerCase() === 'm') dmgVal /= 1000; }
-            else if (m2) { dmgVal = parseFloat(m2[1]); if(m2[2].toLowerCase() === 'm') dmgVal /= 1000; }
-            if (dmgVal > maxDmg) maxDmg = dmgVal;
+            // 1. 총 피해와 총 체력 정밀 추출 (숫자 뭉침 오류 완벽 수정)
+            // 공백을 억지로 지우지 않고, 숫자와 '총 피해' 사이의 띄어쓰기를 유연하게 허용
+            const dmgMatch = text.match(/([\d\.,]+)\s*([a-zA-Z]?)\s*총\s*피\s*해/i);
+            if (dmgMatch) {
+                let val = parseFloat(dmgMatch[1].replace(/,/g, ''));
+                if (dmgMatch[2].toLowerCase() === 'm') val /= 1000; // m단위면 B단위로 환산
+                if (val > maxDmg) maxDmg = val;
+            }
 
-            // 총체력
-            let m3 = noSpaceText.match(/([\d\.]+)([mbMB])총체력/i);
-            let m4 = noSpaceText.match(/총체력([\d\.]+)([mbMB])/i);
-            let hpVal = 0;
-            if (m3) { hpVal = parseFloat(m3[1]); if(m3[2].toLowerCase() === 'm') hpVal /= 1000; }
-            else if (m4) { hpVal = parseFloat(m4[1]); if(m4[2].toLowerCase() === 'm') hpVal /= 1000; }
-            if (hpVal > maxHp) maxHp = hpVal;
+            // OCR이 '체력'을 '채력'으로 오타 낼 경우까지 대비
+            const hpMatch = text.match(/([\d\.,]+)\s*([a-zA-Z]?)\s*총\s*[체채]\s*력/i);
+            if (hpMatch) {
+                let val = parseFloat(hpMatch[1].replace(/,/g, ''));
+                if (hpMatch[2].toLowerCase() === 'm') val /= 1000;
+                if (val > maxHp) maxHp = val;
+            }
 
-            // 2. 세부 옵션 추출 (띄어쓰기 포함 원본 텍스트 사용)
+            // 2. 세부 옵션 추출 (+ 수치 % 형태)
             const lines = text.split('\n');
             lines.forEach(line => {
-                const match = line.match(/(?:\+|-)?\s*([\d\.]+)\s*%\s*([가-힣a-zA-Z\s]+)/);
+                const match = line.match(/(?:\+|-)?\s*([\d\.,]+)\s*%\s*([가-힣a-zA-Z\s]+)/);
                 if (match) {
-                    const value = parseFloat(match[1]);
+                    const value = parseFloat(match[1].replace(/,/g, ''));
                     const name = match[2].trim();
-                    // 여러 장에서 중복 인식되더라도 덮어쓰므로 문제없음
                     parsedData[playerKey].stats[name] = value; 
                 }
             });
-        } // for loop 종료
+        }
 
-        // 찾지 못했을 경우 기본값 1 부여 (계산 오류 방지)
+        // 못 찾았을 경우 기본값 1 부여 (계산기 고장 방지)
         parsedData[playerKey].dmg = maxDmg || 1;
         parsedData[playerKey].hp = maxHp || 1;
 
-        // UI 업데이트
+        // UI 리스트 그리기
         renderOptionList(parsedData[playerKey].stats, listId);
 
+        // UI에 소수점 깔끔하게 표시
         const displayDmg = parsedData[playerKey].dmg === 1 ? "?" : parsedData[playerKey].dmg.toFixed(3);
         const displayHp = parsedData[playerKey].hp === 1 ? "?" : parsedData[playerKey].hp.toFixed(2);
 
