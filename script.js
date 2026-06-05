@@ -8,7 +8,7 @@ const parsedData = {
     enemy: { power: 0, hp: 0, stats: {} }
 };
 
-// --- [1] 이미지 자동 분석 모듈 (실시간 진행상황 추가) ---
+// --- [1] 이미지 자동 분석 모듈 (기본 스탯 인식 강화) ---
 async function processImage(fileInputId, statusId, listId, playerKey) {
     const file = document.getElementById(fileInputId).files[0];
     if (!file) return;
@@ -18,10 +18,8 @@ async function processImage(fileInputId, statusId, listId, playerKey) {
     statusEl.style.color = "#f9a826";
 
     try {
-        // 안전하게 파일 URL 생성
         const imageUrl = URL.createObjectURL(file);
 
-        // 진행 상황을 화면에 실시간으로 표시
         const { data: { text } } = await Tesseract.recognize(imageUrl, 'kor+eng', {
             logger: m => {
                 if (m.status === 'recognizing text') {
@@ -34,14 +32,37 @@ async function processImage(fileInputId, statusId, listId, playerKey) {
             }
         });
         
-        // 1. 기본 전투력(B) / 체력(B) 추출
-        const cpMatch = text.match(/(?:전투력|대장간|기본).*?([\d\.]+)\s*[bB]/i) || text.match(/([\d\.]+)\s*[bB]/);
-        const hpMatch = text.match(/(?:체력|총\s*체력).*?([\d\.]+)\s*[bB]/i);
-        
-        parsedData[playerKey].power = cpMatch ? parseFloat(cpMatch[1]) : 1;
-        parsedData[playerKey].hp = hpMatch ? parseFloat(hpMatch[1]) : 1;
+        // --- [핵심 개선] 스탯 추출 로직 고도화 ---
+        let cleanText = text.replace(/,/g, ''); // 인식 오류를 막기 위해 콤마(,) 제거
+        let power = 1;
+        let hp = 1;
 
-        // 2. 만능 옵션 스캐너 (텍스트 전체에서 옵션 수치만 긁어모음)
+        // 1. 총 체력 추출 (단위 m, b 자동 변환)
+        const hpMatch = cleanText.match(/([\d\.]+)\s*([mbMB]?)\s*총\s*체력/);
+        if (hpMatch) {
+            hp = parseFloat(hpMatch[1]);
+            if (hpMatch[2].toLowerCase() === 'm') hp /= 1000; // m단위면 b단위(1/1000)로 환산
+            cleanText = cleanText.replace(hpMatch[0], ''); // 다음 검색을 위해 지워둠
+        }
+
+        // 2. 총 피해 추출 (지워두기 용도)
+        const dmgMatch = cleanText.match(/([\d\.]+)\s*([mbMB]?)\s*총\s*피해/);
+        if (dmgMatch) {
+            cleanText = cleanText.replace(dmgMatch[0], '');
+        }
+
+        // 3. 전투력 추출 (남아있는 텍스트 중 b나 m이 붙은 가장 큰 숫자를 전투력으로 간주)
+        const cpMatch = cleanText.match(/([\d\.]+)\s*([mbMB])/);
+        if (cpMatch) {
+            power = parseFloat(cpMatch[1]);
+            if (cpMatch[2].toLowerCase() === 'm') power /= 1000;
+        }
+
+        parsedData[playerKey].power = power;
+        parsedData[playerKey].hp = hp;
+        // ----------------------------------------
+
+        // 4. 만능 옵션 스캐너 (텍스트 전체에서 % 옵션 수치만 긁어모음)
         const extractedStats = {};
         const lines = text.split('\n');
         
@@ -56,26 +77,26 @@ async function processImage(fileInputId, statusId, listId, playerKey) {
 
         parsedData[playerKey].stats = extractedStats;
 
-        // 3. UI 업데이트 (심플 리스트 생성)
+        // 5. UI 업데이트
         renderOptionList(extractedStats, listId);
 
-        // 로딩 완료 처리
-        statusEl.innerText = `✅ 스캔 완료! (기본 스탯: ${parsedData[playerKey].power}B / ${parsedData[playerKey].hp}B)`;
+        // 표시용 포맷팅 (소수점 2자리)
+        const displayPower = power === 1 ? "?" : power.toFixed(2);
+        const displayHp = hp === 1 ? "?" : hp.toFixed(2);
+
+        statusEl.innerText = `✅ 스캔 완료! (전투력: ${displayPower}B / 체력: ${displayHp}B)`;
         statusEl.style.color = "#4ade80";
 
-        // 양쪽 모두 준비되면 계산 버튼 활성화
         if (playerKey === 'my') isMyDataReady = true;
         if (playerKey === 'enemy') isEnemyDataReady = true;
         checkReadyState();
 
     } catch (error) {
         console.error(error);
-        // 에러 내용을 화면에 직접 출력하여 디버깅 용이하게 함
-        statusEl.innerText = `❌ 에러 발생: ${error.message || "네트워크나 파일 오류입니다."}`;
+        statusEl.innerText = `❌ 에러 발생: 텍스트를 인식할 수 없습니다.`;
         statusEl.style.color = "#ff4b4b";
     }
 }
-
 // 추출한 옵션을 심플한 목록으로 그려주는 함수
 function renderOptionList(stats, containerId) {
     const container = document.getElementById(containerId);
