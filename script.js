@@ -4,32 +4,42 @@ const parsedData = {
     enemy: { stats: {} }
 };
 
-// --- [핵심 추가] 철통방어! 공식 옵션만 통과시키는 입구컷 로직 ---
+// --- [핵심 수정] 수식어가 붙은 피해와 순수 피해를 완벽히 구분하는 로직 ---
 function normalizeStatName(rawName) {
-    // 띄어쓰기를 지우고 대문자로 변환해서 검사
     const str = rawName.replace(/\s+/g, '').toUpperCase(); 
 
-    if (str.includes("치명타확")) return "치명타 확률";
-    if (str.includes("치명타피") || str.includes("치명타애") || str.includes("치명타찌") || str.includes("치명타")) return "치명타 피해";
+    // 1. 자주 틀리는 오타들을 그룹으로 묶어둡니다.
+    const hasDmg = str.includes("피해") || str.includes("피애") || str.includes("씨애") || str.includes("찌애") || str.includes("파해") || str.includes("피헤");
+    const hasCrit = str.includes("치명") || str.includes("지명") || str.includes("명타") || str.includes("치멍") || str.includes("치명타");
+
+    // 2. 수식어가 있는 옵션들을 먼저 다 걸러냅니다. (계급제 필터링)
+    
+    // 치명타 계열
+    if ((str.includes("확률") || str.includes("확")) && hasCrit) return "치명타 확률";
+    if (hasCrit) return "치명타 피해"; // '확률'이 아니면 전부 치명타 피해로 간주
+
     if (str.includes("블록")) return "블록 확률";
     if (str.includes("재생")) return "체력 재생";
     if (str.includes("흡수")) return "생명력 흡수";
     if (str.includes("더블")) return "더블 찬스";
-    if (str.includes("근접")) return "근접 피해";
-    if (str.includes("원거리")) return "원거리 피해";
-    if (str.includes("속도")) return "공격 속도";
-    if (str.includes("대기시간") || str.includes("재사용")) return "스킬 재사용 대기시간";
-    if (str.includes("스킬피") || str.includes("스킬애") || str.includes("스킬찌") || str.includes("스킬씨")) return "스킬 피해";
     
-    // 위 옵션들을 다 거치고 남은 것 중 '피해' 관련 글자가 있으면 단일 '피해'로 통일
-    if (str.includes("피해") || str.includes("피애") || str.includes("씨애") || str.includes("찌애") || str.includes("파해")) {
+    // 피해 계열 중 수식어가 붙은 것들 먼저 처리
+    if (hasDmg && str.includes("근접")) return "근접 피해";
+    if (hasDmg && str.includes("원거리")) return "원거리 피해";
+    if (hasDmg && (str.includes("스킬") || str.includes("스길"))) return "스킬 피해";
+    
+    // 기타 옵션
+    if (str.includes("속도")) return "공격 속도";
+    if (str.includes("대기") || str.includes("재사용")) return "스킬 재사용 대기시간";
+    
+    // 3. 위에서 치명타, 근접, 원거리, 스킬을 싹 다 걸러내고 남은 것 중 '피해'가 있으면?
+    // 이건 진짜 100% 순수 '피해' 옵션입니다!
+    if (hasDmg) {
         return "피해";
     }
 
-    // ★ 공식 옵션 사전에 없는 글자(예: "AI", "Q!", "스탯" 등)는 null을 반환하여 쓰레기통으로 직행!
-    return null; 
+    return null; // 공식 옵션 사전에 없으면 완벽하게 무시
 }
-
 // --- [1] 세부 옵션 전용 초고속 스캐너 ---
 async function processImages(fileInputId, statusId, listId, playerKey) {
     const files = document.getElementById(fileInputId).files;
