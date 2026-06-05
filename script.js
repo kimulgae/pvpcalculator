@@ -4,8 +4,8 @@ let isEnemyDataReady = false;
 
 // 파싱된 데이터를 저장할 메인 객체
 const parsedData = {
-    my: { dmg: 0, hp: 0, stats: {} },
-    enemy: { dmg: 0, hp: 0, stats: {} }
+    my: { power: 1, dmg: 0, hp: 0, stats: {} },
+    enemy: { power: 1, dmg: 0, hp: 0, stats: {} }
 };
 
 // --- [1] 다중 이미지 자동 분석 모듈 ---
@@ -17,10 +17,10 @@ async function processImages(fileInputId, statusId, listId, playerKey) {
     statusEl.innerText = `⏳ 총 ${files.length}장의 이미지 스캔 중...`;
     statusEl.style.color = "#f9a826";
 
-    // 데이터 초기화
     parsedData[playerKey].stats = {};
     let maxDmg = 0;
     let maxHp = 0;
+    let parsedPower = 1;
 
     try {
         for (let i = 0; i < files.length; i++) {
@@ -35,52 +35,73 @@ async function processImages(fileInputId, statusId, listId, playerKey) {
                 }
             });
 
-            // 줄 단위로 쪼개서 엄격하게 검사
+            // 1. 기본 전투력(CP) 추출 (최상단에 위치한 B 단위 숫자)
+            // 전투력을 알아야 M인지 B인지 똑똑하게 유추할 수 있습니다.
+            if (parsedPower === 1) {
+                const cpMatch = text.match(/([\d\.,]+)\s*([mbMB])/);
+                if (cpMatch) {
+                    let pVal = parseFloat(cpMatch[1].replace(/,/g, '.'));
+                    if (cpMatch[2].toLowerCase() === 'm') pVal /= 1000;
+                    parsedPower = pVal;
+                    parsedData[playerKey].power = parsedPower;
+                }
+            }
+
+            // [핵심] M / B 자동 유추 헬퍼 함수
+            const deduceUnit = (val, extractedUnit) => {
+                let unit = extractedUnit.toLowerCase();
+                if (unit.includes('m') || unit.includes('n') || unit.includes('w')) return 'm';
+                if (unit.includes('b') || unit.includes('v') || unit.includes('d') || unit.includes('6')) return 'b';
+                
+                // OCR이 단위를 아예 빼먹었을 경우 수학적 추론!
+                // 피해량/체력 숫자가 전투력의 2배보다 크다면? 그건 절대 B일 수 없으므로 무조건 M으로 판정!
+                if (parsedPower > 1) {
+                    return (val > parsedPower * 2) ? 'm' : 'b';
+                } else {
+                    return (val > 50) ? 'm' : 'b';
+                }
+            };
+
             const lines = text.split('\n');
             lines.forEach(line => {
                 
-                // 1. 총 피해 추출 (반드시 숫자 바로 뒤에 '총 피해'가 오는 경우만 인정)
-                const dmgMatch = line.match(/([\d\.,]+)\s*([mbMB6]?)\s*[총종통충층]\s*피\s*[해히]/i);
+                // 2. 총 피해 추출
+                const dmgMatch = line.match(/([\d\.,]+)\s*([a-zA-Z가-힣6]*)\s*[총종통충층]\s*피\s*[해히]/i);
                 if (dmgMatch) {
-                    let numStr = dmgMatch[1].replace(/,/g, '.'); // 콤마를 온점으로 교체
-                    let unit = dmgMatch[2].toLowerCase();
+                    let numStr = dmgMatch[1].replace(/,/g, '.');
+                    let unitStr = dmgMatch[2];
 
-                    // 'b'를 '6'으로 오독한 경우 완벽 교정 (예: 1.296 -> 1.29b)
-                    if (unit === '' && numStr.endsWith('6') && numStr.includes('.')) {
+                    if (unitStr === '' && numStr.endsWith('6') && numStr.includes('.')) {
                         numStr = numStr.slice(0, -1);
-                        unit = 'b';
-                    } else if (unit === '6') {
-                        unit = 'b';
-                    } else if (unit === '') {
-                        unit = 'b'; // 단위가 없으면 기본값 B
+                        unitStr = 'b';
                     }
 
                     let val = parseFloat(numStr);
-                    if (unit === 'm') val /= 1000;
-                    if (val > maxDmg && val < 5000) maxDmg = val; // 5000B 이상은 오류로 간주하고 무시
+                    let finalUnit = deduceUnit(val, unitStr);
+
+                    if (finalUnit === 'm') val /= 1000;
+                    if (val > maxDmg && val < 5000) maxDmg = val;
                 }
 
-                // 2. 총 체력 추출 (반드시 숫자 바로 뒤에 '총 체력'이 오는 경우만 인정)
-                const hpMatch = line.match(/([\d\.,]+)\s*([mbMB6]?)\s*[총종통충층]\s*[체채제]\s*[력럭릭]/i);
+                // 3. 총 체력 추출
+                const hpMatch = line.match(/([\d\.,]+)\s*([a-zA-Z가-힣6]*)\s*[총종통충층]\s*[체채제]\s*[력럭릭]/i);
                 if (hpMatch) {
                     let numStr = hpMatch[1].replace(/,/g, '.');
-                    let unit = hpMatch[2].toLowerCase();
+                    let unitStr = hpMatch[2];
 
-                    if (unit === '' && numStr.endsWith('6') && numStr.includes('.')) {
+                    if (unitStr === '' && numStr.endsWith('6') && numStr.includes('.')) {
                         numStr = numStr.slice(0, -1);
-                        unit = 'b';
-                    } else if (unit === '6') {
-                        unit = 'b';
-                    } else if (unit === '') {
-                        unit = 'b';
+                        unitStr = 'b';
                     }
 
                     let val = parseFloat(numStr);
-                    if (unit === 'm') val /= 1000;
+                    let finalUnit = deduceUnit(val, unitStr);
+
+                    if (finalUnit === 'm') val /= 1000;
                     if (val > maxHp && val < 5000) maxHp = val;
                 }
 
-                // 3. 세부 옵션 추출 (+ 수치 % 형태)
+                // 4. 세부 옵션 추출 (+ 수치 % 형태)
                 const optMatch = line.match(/(?:\+|-)?\s*([\d\.,]+)\s*%\s*([가-힣a-zA-Z\s]+)/);
                 if (optMatch) {
                     const value = parseFloat(optMatch[1].replace(/,/g, '.'));
@@ -90,16 +111,15 @@ async function processImages(fileInputId, statusId, listId, playerKey) {
             });
         }
 
-        // 못 찾았을 경우 기본값 1 부여
         parsedData[playerKey].dmg = maxDmg || 1;
         parsedData[playerKey].hp = maxHp || 1;
 
         // UI 리스트 그리기
         renderOptionList(parsedData[playerKey].stats, listId);
 
-        // UI에 소수점 깔끔하게 표시
+        // 표시용 포맷팅
         const displayDmg = parsedData[playerKey].dmg === 1 ? "?" : parsedData[playerKey].dmg.toFixed(3);
-        const displayHp = parsedData[playerKey].hp === 1 ? "?" : parsedData[playerKey].hp.toFixed(2);
+        const displayHp = parsedData[playerKey].hp === 1 ? "?" : parsedData[playerKey].hp.toFixed(3);
 
         statusEl.innerText = `✅ 스캔 완료! (총 피해: ${displayDmg}B / 총 체력: ${displayHp}B)`;
         statusEl.style.color = "#4ade80";
@@ -114,6 +134,7 @@ async function processImages(fileInputId, statusId, listId, playerKey) {
         statusEl.style.color = "#ff4b4b";
     }
 }
+
 // 추출한 옵션을 심플한 목록으로 그려주는 함수
 function renderOptionList(stats, containerId) {
     const container = document.getElementById(containerId);
@@ -147,7 +168,6 @@ function checkReadyState() {
     }
 }
 
-// 다중 파일 업로드 이벤트 연결
 document.getElementById('myImage').addEventListener('change', () => processImages('myImage', 'myStatus', 'myOptionList', 'my'));
 document.getElementById('enemyImage').addEventListener('change', () => processImages('enemyImage', 'enemyStatus', 'enemyOptionList', 'enemy'));
 
