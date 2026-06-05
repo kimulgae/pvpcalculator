@@ -58,29 +58,22 @@ async function processImages(fileInputId, statusId, listId, playerKey) {
     if (files.length === 0) return;
 
     const statusEl = document.getElementById(statusId);
-    statusEl.innerText = `⏳ 옵션 정밀 스캔 중...`;
+    statusEl.innerText = `⏳ 분석 중...`;
+    statusEl.style.color = "#f9a826";
+
     parsedData[playerKey].stats = {}; 
 
     try {
         for (let i = 0; i < files.length; i++) {
-            const img = new Image();
-            img.src = URL.createObjectURL(files[i]);
-            await img.decode();
+            // [안전 모드] 캔버스 없이 직접 이미지를 전달하여 에러 방지
+            const { data: { text } } = await Tesseract.recognize(files[i], 'kor+eng');
 
-            // [핵심] 캔버스를 사용해 이미지의 하단 50%만 잘라냅니다!
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            canvas.width = img.width;
-            canvas.height = img.height / 2; // 전체 높이의 절반만
-            ctx.drawImage(img, 0, -img.height / 2, img.width, img.height); // 위쪽은 버림
-
-            // 잘라낸 하단부 이미지로 스캔 시작
-            const { data: { text } } = await Tesseract.recognize(canvas, 'kor+eng');
-
+            // 텍스트를 한 줄씩 검사하여 옵션 추출
             text.split('\n').forEach(line => {
                 const cleanStr = line.replace(/\s+/g, '');
                 if (!cleanStr) return;
 
+                // 숫자와 옵션명 추출
                 const numMatch = cleanStr.match(/([+-]?\d+[\.,]?\d*)/);
                 const korMatch = cleanStr.match(/[가-힣]+/g);
 
@@ -88,10 +81,9 @@ async function processImages(fileInputId, statusId, listId, playerKey) {
                     let value = parseFloat(numMatch[1].replace(',', '.'));
                     let rawName = korMatch.join('');
                     
-                    // 10000% 이상의 비정상 데이터 차단
+                    // 비정상적인 큰 숫자는 차단
                     if (Math.abs(value) > 10000) return;
 
-                    // 앞서 작성한 normalizeStatName 로직 그대로 사용
                     let statName = normalizeStatName(rawName);
                     if (statName) {
                         parsedData[playerKey].stats[statName] = value;
@@ -100,10 +92,12 @@ async function processImages(fileInputId, statusId, listId, playerKey) {
             });
         }
         renderOptionList(parsedData[playerKey].stats, listId);
-        statusEl.innerText = `✅ 하단부 옵션 스캔 완료!`;
+        statusEl.innerText = `✅ 스캔 완료!`;
         statusEl.style.color = "#4ade80";
     } catch (e) { 
-        statusEl.innerText = `❌ 에러 발생`;
+        console.error(e);
+        statusEl.innerText = `❌ 에러 발생 (이미지를 확인하세요)`;
+        statusEl.style.color = "#ff4b4b";
     }
 }
 function renderOptionList(stats, containerId) {
