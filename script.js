@@ -53,32 +53,23 @@ const SKILL_DB = {
 
 const ASCENSION_MULTIPLIERS = { 0: 1.0, 1: 49.0, 2: 2499.0, 3: 124999.0 };
 
-// [철벽 오타 교정기] JPG 화질 저하로 인한 모든 오타 포용
+// [옵션명 정규화]
 function normalizeStatName(rawName) {
     if (rawName.includes("총") || rawName.includes("대장간") || rawName.includes("레벨") || rawName.includes("도감") || rawName.includes("장착")) return null;
     
-    if (rawName.includes("치명") || rawName.includes("지명") || rawName.includes("명타")) {
-        return (rawName.includes("피해") || rawName.includes("피애")) ? "치명타 피해" : "치명타 확률";
-    }
-    if (rawName.includes("확률") || rawName.includes("확럴") || rawName.includes("학률") || rawName.includes("블록") || rawName.includes("블럭") || rawName.includes("플록")) return "블록 확률";
-    if (rawName.includes("흡수") || rawName.includes("생명") || rawName.includes("흡슈")) return "생명력 흡수";
-    if (rawName.includes("더블") || rawName.includes("떠블") || rawName.includes("찬스") || rawName.includes("단스")) return "더블 찬스";
-    if (rawName.includes("속도") || rawName.includes("속토") || rawName.includes("공격")) return "공격 속도";
-    if (rawName.includes("대기") || rawName.includes("재사용") || rawName.includes("시간")) return "스킬 재사용 대기시간";
-    
-    if (rawName.includes("근접") || rawName.includes("건접")) return "근접 피해";
-    if (rawName.includes("원거리") || rawName.includes("원거")) return "원거리 피해";
-    if (rawName.includes("스킬") || rawName.includes("스길")) return "스킬 피해";
+    if (rawName.includes("치명") || rawName.includes("지명")) return (rawName.includes("피해") || rawName.includes("피애")) ? "치명타 피해" : "치명타 확률";
+    if (rawName.includes("확률") || rawName.includes("블록") || rawName.includes("플록")) return "블록 확률";
+    if (rawName.includes("흡수") || rawName.includes("생명")) return "생명력 흡수";
+    if (rawName.includes("더블") || rawName.includes("찬스")) return "더블 찬스";
+    if (rawName.includes("속도") || rawName.includes("공격")) return "공격 속도";
     
     if (rawName.includes("재생") || rawName.includes("제생")) return "체력 재생";
-    if (rawName.includes("체력") || rawName.includes("채력") || rawName.includes("최력") || rawName.includes("체럭")) return "체력";
-    
-    if (rawName.includes("피해") || rawName.includes("피애") || rawName.includes("파해") || rawName.includes("피헤")) return "피해";
+    if (rawName.match(/체력|채력|최력|체럭/)) return "체력";
     
     return null;
 }
 
-// [쓰레기 기호 완전 분쇄 엔진] 
+// [스캔 엔진: 하단 영역만 추출]
 async function processImages(fileInputId, statusId, listId, playerKey) {
     const files = document.getElementById(fileInputId).files;
     if (files.length === 0) return;
@@ -89,47 +80,43 @@ async function processImages(fileInputId, statusId, listId, playerKey) {
 
     try {
         for (let i = 0; i < files.length; i++) {
-            statusEl.innerText = `⏳ ${i + 1}/${files.length}번째 이미지 딥러닝 분석 중...`;
+            statusEl.innerText = `⏳ ${i + 1}/${files.length}번째 이미지 옵션 분석 중...`;
             
             const imgUrl = URL.createObjectURL(files[i]);
-            const { data: { text } } = await Tesseract.recognize(imgUrl, 'kor+eng');
+            const { data } = await Tesseract.recognize(imgUrl, 'kor+eng');
             URL.revokeObjectURL(imgUrl); 
 
-            // 1. 모든 띄어쓰기를 완전히 파괴합니다.
-            const cleanText = text.replace(/\s+/g, '');
-            
-            // 🎯 끝판왕 정규식: (부호)(숫자) [가운데 쓰레기 기호들 무시] (한글옵션)
-            // 숫자와 한글 사이에 AI가 만들어낸 *, ', _ 같은 특수문자를 전부 무시하고 뚫고 지나갑니다!
-            const regex = /([+-]?)(\d+[\.,]?\d*)[^a-zA-Z가-힣0-9]*([a-zA-Z가-힣]+)/g;
-            let match;
-            
-            while ((match = regex.exec(cleanText)) !== null) {
-                const sign = match[1]; // + 또는 -
-                const numStr = match[2].replace(',', '.'); // 숫자의 쉼표를 마침표로
-                let value = parseFloat(numStr);
-                
-                if (sign === '-') value = -value;
-                
-                // 쓰레기 숫자 데이터 차단 (정상 수치 30000 이하만 통과)
-                if (Math.abs(value) > 30000) continue;
+            const imgHeight = data.imageHeight;
 
-                const rawName = match[3]; // 한글 옵션명 추출
-                const statName = normalizeStatName(rawName);
+            data.lines.forEach(line => {
+                // 핵심 로직: 이미지의 상단 60% 영역은 무조건 무시 (프로필 오인식 방지)
+                if (line.baseline.top < imgHeight * 0.6) return;
+
+                const text = line.text.replace(/\s+/g, '');
+                const regex = /([+-]?)(\d+[\.,]?\d*)[^a-zA-Z가-힣0-9]*([a-zA-Z가-힣]+)/;
+                const match = text.match(regex);
                 
-                // 유효한 옵션명이라면 저장!
-                if (statName) {
-                    parsedData[playerKey].stats[statName] = value;
+                if (match) {
+                    const sign = match[1];
+                    let value = parseFloat(match[2].replace(',', '.'));
+                    if (sign === '-') value = -value;
+                    if (Math.abs(value) > 30000) return;
+
+                    const statName = normalizeStatName(match[3]);
+                    if (statName) {
+                        parsedData[playerKey].stats[statName] = value;
+                    }
                 }
-            }
+            });
         }
         
         renderOptionList(parsedData[playerKey].stats, listId);
-        statusEl.innerText = `✅ 총 ${files.length}장 옵션 스캔 완료!`;
+        statusEl.innerText = `✅ 스캔 완료 (하단 옵션만 추출됨)`;
         statusEl.style.color = "#4ade80";
 
     } catch (e) { 
         console.error(e);
-        statusEl.innerText = `❌ 에러 발생: 페이지 새로고침 후 다시 시도해주세요.`;
+        statusEl.innerText = `❌ 스캔 에러 발생`;
         statusEl.style.color = "#ff4b4b";
     }
 }
@@ -142,67 +129,121 @@ function renderOptionList(stats, containerId) {
         return;
     }
     Object.keys(stats).forEach(name => {
-        const prefix = name.includes("대기시간") ? "-" : "+";
+        const prefix = stats[name] > 0 ? "+" : "";
         container.innerHTML += `<div class="simple-option-item"><span class="opt-name">${name}</span><span class="opt-value">${prefix}${stats[name]}%</span></div>`;
     });
 }
 
+// [시뮬레이션 엔진]
 document.getElementById('calcBtn').addEventListener('click', () => {
     const getMultiplier = (u) => ({'k': 1e3, 'm': 1e6, 'b': 1e9, 't': 1e12, 'q': 1e15}[u] || 1);
     const getVal = (v, u) => parseFloat(document.getElementById(v).value || 0) * getMultiplier(document.getElementById(u).value);
 
-    const myBase = getVal('myDmgVal', 'myDmgUnit') * getVal('myHpVal', 'myHpUnit');
-    const enemyBase = getVal('enemyDmgVal', 'enemyDmgUnit') * getVal('enemyHpVal', 'enemyHpUnit');
+    const myBaseDmg = getVal('myDmgVal', 'myDmgUnit');
+    const myBaseHp = getVal('myHpVal', 'myHpUnit');
+    const enBaseDmg = getVal('enemyDmgVal', 'enemyDmgUnit');
+    const enBaseHp = getVal('enemyHpVal', 'enemyHpUnit');
 
-    if (myBase === 0 || enemyBase === 0) {
-        alert("양쪽의 '총 피해'와 '총 체력'을 모두 숫자로 입력해주세요!");
+    if (myBaseHp === 0 || enBaseHp === 0 || myBaseDmg === 0 || enBaseDmg === 0) {
+        alert("양쪽의 '총 피해'와 '총 체력'을 반드시 숫자로 기입해주세요!");
         return;
     }
 
-    const calcEff = (stats, pKey) => {
-        const getS = (k) => stats[k] / 100 || 0; 
-        
-        let multi = 1.0;
-        multi *= (1 + getS("피해") + getS("근접 피해") + getS("원거리 피해") + getS("스킬 피해"));
-        multi *= (1 + getS("체력")); 
-        multi *= (1 + getS("공격 속도"));
-        multi *= (1 + getS("더블 찬스"));
-        multi *= (1 + (getS("치명타 확률") * (0.2 + getS("치명타 피해"))));
+    const isGuildWar = document.getElementById("isGuildWar").checked;
 
+    // 플레이어 전투 수치 빌드 (Additive & Multiplier 혼합)
+    const buildPlayer = (baseDmg, baseHp, stats, pKey) => {
+        const getS = (k) => stats[k] / 100 || 0;
         const ascLevel = parseInt(document.getElementById(pKey + 'Ascension').value);
         const ascBonus = ASCENSION_MULTIPLIERS[ascLevel] || 1.0;
 
+        let skillDpsMult = 0;
+        let skillHpBonus = 0;
+
+        // 스킬 연산 적용
         for (let i = 1; i <= 3; i++) {
-            const skillKey = document.getElementById(pKey + 'Skill' + i).value;
-            const s = SKILL_DB[skillKey];
-            
+            const s = SKILL_DB[document.getElementById(pKey + 'Skill' + i).value];
             if (s) {
-                if (s.type === "dmg") {
-                    multi += (s.power * s.count * ascBonus); 
-                } else if (s.type === "buff") {
-                    const buffUptime = (s.duration * s.count) / 60;
-                    multi *= (1 + (s.dmgBonus * ascBonus * buffUptime)); 
+                if (s.type === 'dmg') {
+                    // 데미지 스킬을 초당 DPS 증가율로 환산
+                    skillDpsMult += (s.power * s.count * ascBonus) / s.cooldown;
+                } else if (s.type === 'buff') {
+                    const uptime = Math.min(1, (s.duration * s.count) / 60);
+                    skillHpBonus += s.hpBonus * ascBonus * uptime;
+                    skillDpsMult += s.dmgBonus * ascBonus * uptime;
                 }
             }
         }
-        return multi;
+
+        // 1. 체력: (입력된 베이스) * (길드전 보정) * (1 + 스킬 보너스)
+        // (수동 입력 베이스에 이미 Additive 옵션이 포함되어 있다고 가정)
+        const hpScale = isGuildWar ? 2.6 : 1.0;
+        let totalHp = baseHp * hpScale * (1 + skillHpBonus);
+
+        // 2. 피해량 곱연산: 공속 * 치명타배율 * 더블찬스
+        let atkSpeed = 1 + getS("공격 속도");
+        let critMult = 1 + (getS("치명타 확률") * (0.2 + getS("치명타 피해"))); // 기본 치명피해 1.2배 가정
+        let doubleMult = 1 + getS("더블 찬스");
+
+        let finalDps = baseDmg * (1 + skillDpsMult) * atkSpeed * critMult * doubleMult;
+
+        // 3. 생존력 곱연산
+        let regen = totalHp * getS("체력 재생");
+        let lifesteal = finalDps * getS("생명력 흡수");
+        let blockChance = getS("블록 확률"); // 블록 시 피해 50% 감소 가정
+
+        return { hp: totalHp, maxHp: totalHp, dps: finalDps, regen, lifesteal, blockChance };
     };
 
-    const myEff = calcEff(parsedData.my.stats, 'my');
-    const enEff = calcEff(parsedData.enemy.stats, 'enemy');
+    const my = buildPlayer(myBaseDmg, myBaseHp, parsedData.my.stats, 'my');
+    const en = buildPlayer(enBaseDmg, enBaseHp, parsedData.enemy.stats, 'enemy');
 
-    const winRate = ((myBase * myEff) / (myBase * myEff + enemyBase * enEff) * 100);
-    const finalRate = Math.max(1, Math.min(99.9, winRate)).toFixed(1);
-    
-    document.getElementById('resultText').innerText = `예상 승리 확률: ${finalRate} %`;
-    document.getElementById('winRateFill').style.width = `${finalRate}%`;
+    // 60초 전투 루프
+    let timeElapsed = 60;
+    let resultStr = "⚫ 타임 오버 (무승부)";
+    let resultColor = "#8e8e9f";
 
-    let feedback = "";
-    if (finalRate > 60) feedback = `🏆 예상 결과: <b>승리</b><br>전투력과 스킬 시너지가 상대를 완벽히 압도합니다.`;
-    else if (finalRate > 40) feedback = `⚔️ 예상 결과: <b>박빙의 승부</b><br>능력치가 비슷합니다. 전투 내 운적 요소가 크게 작용합니다.`;
-    else feedback = `⚠️ 예상 결과: <b>패배 위험</b><br>상대방의 스탯 및 옵션 효율이 더 높습니다. 스펙업이 필요합니다.`;
+    for (let t = 1; t <= 60; t++) {
+        // 블록 확률을 반영한 기대 타격치 (RNG 요소를 배제하여 결과 일관성 유지)
+        let expectedMyDmg = my.dps * (1 - (en.blockChance * 0.5)); 
+        let expectedEnDmg = en.dps * (1 - (my.blockChance * 0.5));
+
+        // 교전
+        en.hp -= expectedMyDmg;
+        my.hp -= expectedEnDmg;
+
+        // 회복
+        en.hp = Math.min(en.maxHp, en.hp + en.regen + en.lifesteal);
+        my.hp = Math.min(my.maxHp, my.hp + my.regen + my.lifesteal);
+
+        // 판정
+        if (my.hp <= 0 && en.hp > 0) { 
+            resultStr = "🔴 나의 패배"; resultColor = "#ff4b4b"; timeElapsed = t; break; 
+        }
+        if (en.hp <= 0 && my.hp > 0) { 
+            resultStr = "🔵 나의 승리!!"; resultColor = "#4ade80"; timeElapsed = t; break; 
+        }
+        if (my.hp <= 0 && en.hp <= 0) { 
+            resultStr = "⚫ 동시 사망"; resultColor = "#8e8e9f"; timeElapsed = t; break; 
+        }
+    }
+
+    // 결과 UI 출력
+    document.getElementById("resultTitle").innerHTML = `<span style="color:${resultColor}">${resultStr}</span> <span style="font-size:18px; color:#8e8e9f;">(${timeElapsed}초 소요)</span>`;
     
-    document.getElementById('feedbackText').innerHTML = feedback;
+    document.getElementById("simulationDetails").innerHTML = `
+        <div class="stat-box">
+            <h4>🔵 나의 최종 전투력 지표</h4>
+            <div class="stat-value blue">예상 초당 화력 (DPS): ${my.dps.toLocaleString('ko-KR', {maximumFractionDigits:0})}</div>
+            <div class="stat-value green">초당 체력 회복 (HPS): ${(my.regen + my.lifesteal).toLocaleString('ko-KR', {maximumFractionDigits:0})}</div>
+            <div style="font-size: 13px; color:#8e8e9f; margin-top:5px;">(체젠: ${my.regen.toFixed(0)} + 생흡: ${my.lifesteal.toFixed(0)})</div>
+        </div>
+        <div class="stat-box">
+            <h4>🔴 상대방 전투력 지표</h4>
+            <div class="stat-value red">예상 초당 화력 (DPS): ${en.dps.toLocaleString('ko-KR', {maximumFractionDigits:0})}</div>
+            <div class="stat-value green">초당 체력 회복 (HPS): ${(en.regen + en.lifesteal).toLocaleString('ko-KR', {maximumFractionDigits:0})}</div>
+        </div>
+    `;
 });
 
 document.getElementById('myImage').addEventListener('change', () => processImages('myImage', 'myStatus', 'myOptionList', 'my'));
